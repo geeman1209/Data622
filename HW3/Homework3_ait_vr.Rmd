@@ -340,6 +340,25 @@ dtree.perf
 ### Random Forest 
 
 
+```{r mod4}
+library(randomForest) 
+training$Loan_Status = factor(training$Loan_Status)
+set.seed(42) 
+fit.forest <- randomForest(Loan_Status ~ Credit_History+Education+Self_Employed+Property_Area+LogLoanAmount+
+                             LogIncome, data=training,
+                           
+                           importance=TRUE)
+fit.forest
+
+importance(fit.forest, type=2)
+
+forest.pred <- predict(fit.forest, testing)
+forest.perf <- table(testing$Loan_Status, forest.pred,
+                     dnn=c("Actual", "Predicted"))
+forest.perf
+```
+
+
 ### Model Performance 
 
 
