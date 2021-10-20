@@ -20,16 +20,11 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Problem Statement
 
-Company wants to automate the loan eligibility process (real time) based on customer detail provided while filling online application form. These details are Gender, Marital Status, Education, Number of Dependents, Income, Loan Amount, Credit History and others. To automate this process, they have given a problem to identify the customers' segments, those are eligible for loan amount so that they can specifically target these customers. Here they have provided a partial data set.
+The two most pressing issues in the banking sector are: 1) How risky is the borrower? 2) Should we lend to the borrower given the risk? Banking processes use manual procedures to determine whether or not a borrower is suitable for a loan based on results. Manual procedures were mostly effective, but they were insufficient when there were a large number of loan applications. At that time, making a decision would take a long time. As a result, the loan prediction machine learning model can be used to assess a customer's loan status and build strategies. In this project we want to automate the loan eligibility process (real time) based on customer detail provided while filling online application form. These details are Gender, Marital Status, Education, Number of Dependents, Income, Loan Amount, Credit History and others. Four machine learning models have been used for the prediction of loan approvals and To automate this process:  LDA algorithm, KNN algorithm, Decision Trees and Random Forests. 
 
+### Data Exploratory
 
-### Data Exploration 
-
-The first step is to look at the data we're working with. Realistically, most of the data we will get, even from the government, can have errors, and it's important to identify these errors before spending time analyzing the data. Normally, we must answer the following questions:
-
-- Do we find something wrong in the data?
-- Are there ambiguous variables in the dataset?
-- Are there variables that should be fixed or removed?
+The first step is to explore data we're working with. In this process we'll perform initial investigations on data to discover patterns,to spot anomalies,to test hypothesis and to check assumptions with the help of summary statistics and graphical representations. 
 
 Let's start by reading the data using the function read.csv() and show the first part of the dataset:
 
@@ -38,6 +33,7 @@ loan_data <- read.csv("Loan_approval.csv")
 ```
 
 The first row in the dataset defines the column header. Each of these headers is described in the below table. 
+We have 13 features in total out of which we have 12 independent variables and 1 dependent variable.
 
 ```{r}
 glimpse(loan_data)
