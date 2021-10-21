@@ -53,57 +53,30 @@ The variables Loan_Amount_Term and LoanAmount have a relatively small amount of 
 ```{r}
 gg_miss_upset(loan_data)
 ```
-Now, we will run the skim function to have a quick look on the stats:
-
-```{r}
-skimr::skim(loan_data)
-```
-The mean of Credit_history variable is 0.8422. That's weird knowing that this variable has value of 1 for customers who have credit history and 0 otherwise.
-
-There are blank fields in Gender, Married, Dependents and Self_Employed. Also There are NAs in LoanAmount, Loan_Amount_term and Credit_History.
 
 ### Distribution of the data
 
-#### Numerical Variables
+Now, we will run the skim function to have a quick look on the stats:
 
-Now, it's the time to give a look at the distribution of the data. We will start with the numerical variables: Loan Amount and ApplicantIncome:
-Below are the histograms and the boxplots of the loan amount and the applicant income variables:
-
-```{r}
-par(mfrow=c(2,2))
-hist(loan_data$LoanAmount, 
-     main="Histogram for LoanAmount", 
-     xlab="Loan Amount", 
-     border="blue", 
-     col="blue",
-     las=1, 
-     breaks=20, prob = TRUE)
-boxplot(loan_data$LoanAmount, col='blue',xlab = 'LoanAmount', main = 'Box Plot for Loan Amount')
-hist(loan_data$ApplicantIncome, 
-     main="Histogram for Applicant Income", 
-     xlab="Income", 
-     border="blue", 
-     col="green",
-     las=1, 
-     breaks=50, prob = TRUE)
-#lines(density(training$ApplicantIncome), col='black', lwd=3)
-boxplot(loan_data$ApplicantIncome, col='maroon',xlab = 'ApplicantIncome', main = 'Box Plot for Applicant Income')
-```
-Here we notice that there are few extreme values in both variables. Let's also examine if the applicant' loan amounts distribution is affected by their educational level:
-
-```{r}
-library(ggplot2)
-data(loan_data, package="lattice")
-ggplot(data=loan_data, aes(x=LoanAmount, fill=Education)) +
-  geom_density() +
-  facet_grid(Education~.)
+```{r message=FALSE, warning=FALSE}
+loan_data[sapply(loan_data, is.character)] <- lapply(loan_data[sapply(loan_data, is.character)], 
+                                                           as.factor)
+skimr::skim(loan_data)
 ```
 
-From the graph we can notice that graduates have more outliers and their loan amount distribution is wider.
+#### Categorical variables
 
-#### Categorical Variables
+It can also be inferred from above skim output in our observed data:
 
-let's take a look at the categorical variables in the dataset. We'll plot the categorical variables in relation to the target variable Loan_Status.
+- 81% of loan applicants are male in the training dataset.
+- Nearly 65% are married
+- About 78% of loan applicants are graduates
+- Nearly 85–90% loan applicants are self-employed
+- The loan has been approved for more than 68% of applicants.
+
+There are blank fields in Gender, Married, Dependents and Self_Employed. Also There are NAs in LoanAmount, Loan_Amount_term and Credit_History.
+
+We'll plot the categorical variables in relation to the target variable Loan_Status.
 
 ```{r}
 par(mfrow=c(2,3))
@@ -132,16 +105,59 @@ barplot(counts6, main="Loan Status by Credit_History",
         xlab="Credit_History", col=c("darkgrey","maroon"),
         legend = rownames(counts5))
 ```
-If we look at the Gender graph, we notice that males have more records and more than half of the applicants' applications have been approved. There are less female applicants but still more than half of their applications have been approved. We look at the other charts with the same eye to evaluate how each category performed in regards to the approval of the loan applications.
+
+Similar to skim output we can see from the graphs that males have more records and more than half of the applicants' applications have been approved. There are less female applicants but still more than half of their applications have been approved. We look at the other charts with the same eye to evaluate how each category performed in regards to the approval of the loan applications.
 
 
-### Data Exploration & Preparation
+#### Numerical Variables
+
+Now, it's the time to give a look at the distribution the numerical variables: Loan Amount and ApplicantIncome:
+
+From above skim output we've notice that the mean of Credit_history variable is 0.8422. That's weird knowing that this variable has value of 1 for customers who have credit history and 0 otherwise.
+
+Below are the histograms and the boxplots of the loan amount and the applicant income variables:
+
+```{r}
+par(mfrow=c(2,2))
+hist(loan_data$LoanAmount, 
+     main="Histogram for LoanAmount", 
+     xlab="Loan Amount", 
+     border="blue", 
+     col="blue",
+     las=1, 
+     breaks=20, prob = TRUE)
+boxplot(loan_data$LoanAmount, col='blue',xlab = 'LoanAmount', main = 'Box Plot for Loan Amount')
+hist(loan_data$ApplicantIncome, 
+     main="Histogram for Applicant Income", 
+     xlab="Income", 
+     border="blue", 
+     col="green",
+     las=1, 
+     breaks=50, prob = TRUE)
+#lines(density(training$ApplicantIncome), col='black', lwd=3)
+boxplot(loan_data$ApplicantIncome, col='maroon',xlab = 'ApplicantIncome', main = 'Box Plot for Applicant Income')
+```
+Here we notice that there are few extreme values in both variables. Let's also examine if the applicant' loan amounts distribution is affected by their educational level:
+
+```{r message=FALSE, warning=FALSE}
+library(ggplot2)
+data(loan_data, package="lattice")
+ggplot(data=loan_data, aes(x=LoanAmount, fill=Education)) +
+  geom_density() +
+  facet_grid(Education~.)
+```
+
+From the graph we can notice that graduates have more outliers and their loan amount distribution is wider.
+
+
+
+### Data Preparation
 
 #### Tidying the data
 
 Now that we've identified several errors in the data set, we need to fix them before we continue with our analysis. Let's review the issues:
 
-  There are missing values in some variables. Based on the importance of the variables, we will decide   on the method to use.
+There are missing values in some variables. Based on the importance of the variables, we will decide   on the method to use.
   
   Looking at the distributions of the data, we noticed that ApplicantIncome and LoanAmount have    outliers. 
   
@@ -214,8 +230,6 @@ loan_data %>% dplyr::select(LogIncome, LogLoanAmount, Loan_Amount_Term, Credit_H
 ### Building Predictive Models
 
 There are low levels of correlation among the variables but the variables are clearly skewed and need transformation, especially for LDA. LDA assumes normality, homoscedasticity, low levels of multicollinearity, and independence. 
-
-
 
 First eliminate Loan_ID from the data series. 
 ```{r}
