@@ -453,6 +453,24 @@ forest.perf
 
 ### Model Performance 
 
+Here we are going to load the table with all the metrics for model performance.
+(this csv recorded all the metrics we calculated above).
+
+```{r}
+
+perf_table <- read.csv("Models_performance.csv")
+
+```
+
+
+```{r}
+
+library(kableExtra)
+perf_table %>%
+  kbl(caption = "Summary of models performance", align = 'c') %>%
+  kable_material(c("striped", "hover")) %>%
+  row_spec(0, color = "indigo")
+```
 
 
 Sources:
