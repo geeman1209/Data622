@@ -1,6 +1,6 @@
 ---
 title: "HMK3 | Loan Prediction"
-author: "Abdellah AitElmouden | Gabriel Abreu |  Jered Ataky"
+author: "Abdellah Ait Elmouden | Gabriel Abreu |  Jered Ataky"
 date: "10/13/2021"
 output: html_document
 ---
@@ -9,6 +9,7 @@ output: html_document
 library(GGally)
 library(caret)
 library(mice)
+library(plyr)
 library(tidyverse)
 library(DataExplorer)
 library(MASS)
@@ -169,7 +170,7 @@ The mice() function takes care of the imputing process:
 ```{r mice, echo=FALSE}
 imputed_Data <- mice(loan_data, m=2, maxit = 2, method = 'cart', seed = 500)
 ```
-It's important to mention that mice stands for multiple imputation by chained equations. The 'm' argument in the function indicates how many rounds of imputation we want to do. For simplicity, I will choose 2. The 'method' argument indicates which of the many methods for imputations we want to use. I chose CART which stands for classification and regression trees. This method work with all variables types, and that's why I chose it. Now let's merge the imputed data into our original dataset. We can do this by using the complete() function:
+It's important to mention that mice stands for multiple imputation by chained equations. The 'm' argument in the function indicates how many rounds of imputation we want to do. For simplicity, I will choose 2. The 'method' argument indicates which of the many methods for imputations we want to use. We chose CART which stands for classification and regression trees. This method work with all variables types, and that's why we chose it. Now let's merge the imputed data into our original dataset. We can do this by using the complete() function:
 ```{r imp}
 loan_data <- complete(imputed_Data,2) #here I chose the second round of data imputation
 ```
@@ -271,8 +272,10 @@ In a sparse data like ours, it's easy to overfit the data. Overfit in simple ter
 
 
 ```{r}
-
 partition <- createDataPartition(transformed$Loan_Status, p = 0.8, list=FALSE)
+
+# transform laon status to binary
+
 
 training <- transformed[partition,]
 testing <- transformed[-partition,]
@@ -312,11 +315,90 @@ ldahist(data=predicted$x , g= training$Loan_Status)
 There is overlap, which isn't good for LDA. The model has an accuracy of 85.25% but given the overlap perhaps Linear Discrimnant Analysis is not the optimal model. 
 
 **It gives an error here**
+
 ```{r}
 confusionMatrix(testing$Loan_Status, predicted$class)
 ```
 
 ### KNN
+
+First, let change character variable to numeric
+
+
+```{r}
+
+cols.num <- c("Gender", "Married", "Dependents", "Education", "Self_Employed","Credit_History", "Property_Area")
+training[cols.num] <- sapply(training[cols.num],as.numeric)
+sapply(training, class)
+
+testing[cols.num] <- sapply(testing[cols.num],as.numeric)
+sapply(testing, class)
+
+
+
+training$Loan_Status<-ifelse(training$Loan_Status=="Y",1,0)
+
+testing$Loan_Status<-ifelse(testing$Loan_Status=="Y",1,0)
+```
+
+
+Rule of thumb, we will consider k as square root of the sample. Thus, k = 25
+```{r}
+
+library(class)
+
+ #run knn function
+ knn_model <- knn(training, testing,cl=training$Loan_Status,k=5)
+ 
+
+ 
+ #create confusion matrix
+ 
+ confusionMatrix(table(knn_model ,testing$Loan_Status))
+
+ 
+```
+
+Optimization: write of function to optimize the accuracy by changing k values
+
+```{r}
+i=1
+k.optm=1
+for (i in 1:28){
+ knn_model_optimized <- knn(training, testing, cl=training$Loan_Status, k=i)
+ k.optm[i] <- 100 * sum(testing$Loan_Status == knn_model_optimized)/NROW(testing$Loan_Status)
+ k=i
+ cat(k,'=',k.optm[i],' ')
+}
+
+```
+
+Plot accuracy
+
+```{r}
+
+plot(k.optm, type="b", xlab="K- Value",ylab="Accuracy level")
+
+```
+
+
+We can see that the model reaches the max accuracy at k = 5
+
+Building the new model with k = 5:
+
+```{r}
+
+ #run knn function
+ knn_model <- knn(training, testing,cl=training$Loan_Status,k=5)
+ 
+
+ 
+ #create confusion matrix
+ 
+ confusionMatrix(table(knn_model ,testing$Loan_Status))
+
+ 
+```
 
 
 ### Decision Tree
