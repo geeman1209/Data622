@@ -356,7 +356,7 @@ Rule of thumb, we will consider k as square root of the sample. Thus, k = 25
 library(class)
 
  #run knn function
- knn_model <- knn(training, testing,cl=training$Loan_Status,k=5)
+ knn_model <- knn(training, testing,cl=training$Loan_Status,k=25)
  
 
  
