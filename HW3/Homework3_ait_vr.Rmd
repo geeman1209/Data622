@@ -21,11 +21,11 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Problem Statement
 
-The two most pressing issues in the banking sector are: 1) How risky is the borrower? 2) Should we lend to the borrower given the risk? Banking processes use manual procedures to determine whether or not a borrower is suitable for a loan based on results. Manual procedures were mostly effective, but they were insufficient when there were a large number of loan applications. At that time, making a decision would take a long time. As a result, the loan prediction machine learning model can be used to assess a customer's loan status and build strategies. In this project we want to automate the loan eligibility process (real time) based on customer detail provided while filling online application form. These details are Gender, Marital Status, Education, Number of Dependents, Income, Loan Amount, Credit History and others. Four machine learning models have been used for the prediction of loan approvals and To automate this process:  LDA algorithm, KNN algorithm, Decision Trees and Random Forests. 
+The two most pressing issues in the banking sector are: 1) How risky is the borrower? 2) Should we lend to the borrower given the risk? Banking processes use manual procedures to determine whether or not a borrower is suitable for a loan based on results. Manual procedures were mostly effective, but they were insufficient when there were a large number of loan applications. At that time, making a decision would take a long time. As a result, the loan prediction machine learning model can be used to assess a customer's loan status and build strategies. In this project we want to automate the loan eligibility process (real time) based on customer detail provided while filling online application form. These details are Gender, Marital Status, Education, Number of Dependents, Income, Loan Amount, Credit History and others. Four machine learning models have been used for the prediction of loan approvals and to automate this process:  LDA algorithm, KNN algorithm, Decision Trees and Random Forests. 
 
 ### Data Exploratory
 
-The first step is to explore data we're working with. In this process we'll perform initial investigations on data to discover patterns,to spot anomalies,to test hypothesis and to check assumptions with the help of summary statistics and graphical representations. 
+The first step is to explore data we're working with. In this process we'll perform initial investigations on the data to discover patterns,to spot anomalies,to test hypothesis and to check assumptions with the help of summary statistics and graphical representations. 
 
 Let's start by reading the data using the function read.csv() and show the first part of the dataset:
 
@@ -67,7 +67,7 @@ skimr::skim(loan_data)
 
 #### Categorical variables
 
-It can also be inferred from above skim output in our observed data:
+It can also be inferred from the skim output, that in our observed data:
 
 - 81% of loan applicants are male in the training dataset.
 - Nearly 65% are married
@@ -138,7 +138,7 @@ hist(loan_data$ApplicantIncome,
 #lines(density(training$ApplicantIncome), col='black', lwd=3)
 boxplot(loan_data$ApplicantIncome, col='maroon',xlab = 'ApplicantIncome', main = 'Box Plot for Applicant Income')
 ```
-Here we notice that there are few extreme values in both variables. Let's also examine if the applicant' loan amounts distribution is affected by their educational level:
+Here we notice that there are few extreme values in both variables. Let's also examine if the applicant's loan amounts distribution is affected by their educational level:
 
 ```{r message=FALSE, warning=FALSE}
 library(ggplot2)
@@ -164,7 +164,7 @@ There are missing values in some variables. Based on the importance of the varia
   
 Fixing outliers can be tricky. It's hard to tell if they were caused by measurement error, errors while recording, or if the outliers are real anomaly. If we decide to remove records, we have to document the reason behind this decision. 
 
-In this data set, we will assume that missing values are systematic because the missing data are coming in certain variables in a random manner. Also, we note that missing values are on both numerical and categorical data, therefore, we will be using the mice package in R. This package helps in imputing missing values with plausible data values. These values are inferred from a distribution that is designed for each missing data point. In the missing data plot above, we note that 0.78 of the data are not missing any information, 0.07 are missing the Credit_History value, and the remaining ones show other missing patterns.
+In this data set, we will assume that missing values are systematic because the missing data in certain variables are random throughout the data set. Also, we note that missing values are on both numerical and categorical data, therefore, we will be using the mice package in R. This package helps in imputing missing values with plausible data values. These values are inferred from a distribution that is designed for each missing data point. In the missing data plot above, we note that 0.78 of the data are not missing any information, 0.07 are missing the Credit_History value, and the remaining ones show other missing patterns.
 
 The mice() function takes care of the imputing process:
 ```{r mice, echo=FALSE}
@@ -284,9 +284,13 @@ testing <- transformed[-partition,]
 
 ### LDA 
 
-Fit the model to the data
+Linear Discriminant Analysis (LDA) is a dimensionality reduction technique. It is a more robust method of performing classifcation especially when compared to logistic regression. LDA is preferred when the there is multi-class classificaiton, classes are well separated and can be used when there are small sample sizes. 
+
+In order to maximize the use of LDA, your data needs to be gaussian and each attribute has the same variance. The LDA model guesses the mean and variance from your data set for each class. LDA makes predictions by utilizing Bayes Theorem to calculate the probability that new values belongs to each class. 
+
+Fit the model to the data using numerical variables. 
 ```{r}
-ldaModel <- lda(Loan_Status ~., data = training)
+ldaModel <- lda(Loan_Status ~ LogLoanAmount + LogIncome + Loan_Amount_Term + Credit_History, data = training)
 ```
 
 ```{r}
@@ -304,7 +308,7 @@ names(predicted)
 mean(predicted$class==testing$Loan_Status)
 ```
 
-The model correctly predicted the Loan_Status for 85% of the observations in the test data set. 
+The model correctly predicted the Loan_Status for 82.78% of the observations in the test data set. 
 
 
 Visualizing the results 
@@ -312,9 +316,13 @@ Visualizing the results
 ldahist(data=predicted$x , g= training$Loan_Status)
 ```
 
-There is overlap, which isn't good for LDA. The model has an accuracy of 85.25% but given the overlap perhaps Linear Discrimnant Analysis is not the optimal model. 
+```{r}
+library(klaR)
+partimat(Loan_Status ~ LogLoanAmount + LogIncome + Loan_Amount_Term + Credit_History, data = training, method="lda")
+```
+There is overlap, which isn't good for LDA. The model has an accuracy of 80.32% but given the overlap perhaps Linear Discrimnant Analysis is not the optimal model. The key principal behind LDA is linear separability, meaning the classes need to be separable by a line in an N dimension Euclidean space. 
 
-**It gives an error here**
+
 
 ```{r}
 confusionMatrix(testing$Loan_Status, predicted$class)
