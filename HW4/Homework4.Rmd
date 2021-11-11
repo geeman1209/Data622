@@ -1,0 +1,147 @@
+---
+title: "HMK4 | ADHD Prediction"
+author: "Abdellah Ait Elmouden | Gabriel Abreu |  Jered Ataky"
+date: "11/10/2021"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+library(GGally)
+library(caret)
+library(mice)
+library(plyr)
+library(tidyverse)
+library(DataExplorer)
+library(MASS)
+library(naniar)
+library(corrplot)
+library(VIM)
+library(cluster)
+library(factoextra)
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Problem Statement 
+
+For this assignment, we will be working with a very interesting mental health dataset from a real-life
+research project. All identifying information, of course, has been removed. The attached spreadsheet
+has the data (the tab name “Data”). The data dictionary is given in the second tab. You can get as
+creative as you want. The assignment is designed to really get you to think about how you could use
+different methods.
+
+### Exploratory Data Analysis
+
+Exploration of the data is always the first step in data analysis. The main priorities of exploration is exploring data types, outliers, overall distribution of the data points, and missing data. We're also going to see if any transformation is possible. 
+
+
+```{r}
+#Load the data
+raw_adhd <- readxl::read_xlsx('ADHD_data.xlsx')
+glimpse(raw_adhd)
+```
+
+The data set is mostly compromised of "dbl" type, even though some of the columns such as Sex and Race are prime candidates to be converted to factors. There is are unique values for 'Age' and 'Initial'. Since the column 'Initial' is a sort of identifier, we can safely remove it, the column is not necessary for analysis.
+
+It's important to examine the data dictionary and see which columns might be combined or separated into different data sets.
+
+------------------------------------------------------------------------------------------------------------------------------
+Data Dictionary:
+Sex: Male - 1, Female - 2
+Race: Race:  White-1, African American-2, Hispanic-3, Asian-4, Native American-5, Other or missing data -6
+ADHD self-report scale: Never-0, rarely-1, sometimes-2, often-3, very often-4
+Mood disorder questions: No-0, yes-1; question 3: no problem-0, minor-1, moderate-2, serious-3
+Individual substances misuse:  no use-0, use-1, abuse-2, dependence-3
+Court Order:  No-0, Yes-1
+Education: 1-12 grade, 13+ college
+History of Violence: No-0, Yes-1
+Disorderly Conduct: No-0, Yes-1
+Suicide attempt: No-0, Yes-1
+Abuse Hx: No-0, Physical (P)-1, Sexual (S)-2, Emotional (E)-3, P&S-4, P&E-5, S&E-6, P&S&E-7
+Non-substance-related Dx: 0 – none; 1 – one; 2 – More than one
+Substance-related Dx: 0 – none; 1 – one Substance-related; 2 – two; 3 – three or more
+Psychiatric Meds: 0 – none; 1 – one psychotropic med; 2 – more than one psychotropic med
+------------------------------------------------------------------------------------------------------------------------------
+
+Identifying the missing data from the data set:
+
+```{r}
+plot_missing(raw_adhd)
+```
+
+There are columns missing data, with the exception of Psychiatric Meds, most of the missing data appears imputable. The 'Psychiatric Meds' column is missing 67.43% of data points. Imputing the data for this column is not optimal since most of the data would be imputed.  
+
+```{r}
+gg_miss_upset(raw_adhd)
+```
+
+
+```{r}
+#Remove the Psychiatric Medicine and Initial Columns from data set.
+adhd <- raw_adhd[-c(1, 54)]
+
+```
+
+
+```{r}
+#Examine the dataset after the removing initials and Psychiatric Medicine
+library(skimr)
+skim(adhd)
+```
+#### Data Transformation / Further Data Exploration
+
+The columns Sex and Age are going to be converted to factors. When building future models, it's easier to read the different clusters or groups with certain categorical data turned into factors with appropriate labels. 
+
+```{r}
+adhd$Sex <-factor(adhd$Sex, levels = c(1,2), labels=c('Male','Female'))
+
+adhd$Race <-factor(adhd$Race, levels=c(1,2,3,4,5,6), labels = c('White', 'African American', 'Hispanic', 'Asian', 'Native American', 'Other'))
+```
+
+
+There are minimal amount of rows missing data. Imputing the data might not be the optimal choice for this data. We can drop the rows with missing data and continue with analysis. The minimal amount of missing data will not have a significant impact on our models. 
+
+```{r}
+adhd_complete <- na.omit(adhd)
+```
+
+The total number of rows went from 175 to 142. 
+
+### Clustering
+
+
+#### Hierarchical Clustering
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+
