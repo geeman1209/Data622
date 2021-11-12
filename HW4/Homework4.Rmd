@@ -18,22 +18,24 @@ library(naniar)
 library(corrplot)
 library(VIM)
 library(cluster)
-library(factoextra)
+library(recipes)
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## Problem Statement 
+## Introduction
 
-For this assignment, we will be working with a very interesting mental health dataset from a real-life
-research project. All identifying information, of course, has been removed. The attached spreadsheet
-has the data (the tab name “Data”). The data dictionary is given in the second tab. You can get as
-creative as you want. The assignment is designed to really get you to think about how you could use
-different methods.
+ML techniques can potentially offer new routes for learning patterns of human behavior; identifying mental health symptoms and risk factors; developing predictions about disease progression; and personalizing and optimizing therapies. In this project we will work with mental health dataset and use some of the unsupervised learning methods to cluster data to provide new insights, and to discover patterns and help structure the data.
 
 ### Exploratory Data Analysis
 
 Exploration of the data is always the first step in data analysis. The main priorities of exploration is exploring data types, outliers, overall distribution of the data points, and missing data. We're also going to see if any transformation is possible. 
 
+In this process we'll analye and visualize the data to get a better understanding of the data and glean insight from it. The process will involves the following steps:
+
+- Import the data
+- Clean the data
+- Process the data
+- Visualize the data
 
 ```{r}
 #Load the data
@@ -44,6 +46,10 @@ glimpse(raw_adhd)
 The data set is mostly compromised of "dbl" type, even though some of the columns such as Sex and Race are prime candidates to be converted to factors. There is are unique values for 'Age' and 'Initial'. Since the column 'Initial' is a sort of identifier, we can safely remove it, the column is not necessary for analysis.
 
 It's important to examine the data dictionary and see which columns might be combined or separated into different data sets.
+
+The original dataframe contains 175 observations (i.e. survey participants) as rows and 54 columns as variables.
+The columns contain both qualitative and quantitative variables.
+Moreover, some columns represent categorical data but is encoded as numerical values.
 
 ------------------------------------------------------------------------------------------------------------------------------
 Data Dictionary:
@@ -66,7 +72,15 @@ Psychiatric Meds: 0 – none; 1 – one psychotropic med; 2 – more than one ps
 Identifying the missing data from the data set:
 
 ```{r}
-plot_missing(raw_adhd)
+plot_missing(
+  raw_adhd,
+  group = list(Good = 0.05, OK = 0.4, Bad = 0.8, Remove = 1),
+  missing_only = TRUE,
+  geom_label_args = list(),
+  title = NULL,
+  ggtheme = theme_gray(),
+  theme_config = list(legend.position = c("bottom"))
+)
 ```
 
 There are columns missing data, with the exception of Psychiatric Meds, most of the missing data appears imputable. The 'Psychiatric Meds' column is missing 67.43% of data points. Imputing the data for this column is not optimal since most of the data would be imputed.  
@@ -75,27 +89,50 @@ There are columns missing data, with the exception of Psychiatric Meds, most of 
 gg_miss_upset(raw_adhd)
 ```
 
+```{r}
+# rename data column names
+raw_adhd <- raw_adhd %>% dplyr::rename_all(funs(make.names(.)))
+```
 
+
+```{r}
+imputed_Data <- mice(raw_adhd, m=2, maxit = 2, method = 'cart', seed = 500)
+```
+```{r}
+raw_adhd <- complete(imputed_Data,2)
+```
+
+
+```{r}
+library(skimr)
+skim(raw_adhd)
+```
+
+#### Data Cleaning 
 ```{r}
 #Remove the Psychiatric Medicine and Initial Columns from data set.
 adhd <- raw_adhd[-c(1, 54)]
 
 ```
 
+#### Data Exploration
+
+The various distribution of the responses to the ADHD questionnaire are displayed below. Also Distribution of Binary and Ordinal Variables.
 
 ```{r}
-#Examine the dataset after the removing initials and Psychiatric Medicine
-library(skimr)
-skim(adhd)
+plot_histogram(raw_adhd, ggtheme = theme_linedraw())
+
 ```
+
+
 #### Data Transformation / Further Data Exploration
 
 The columns Sex and Age are going to be converted to factors. When building future models, it's easier to read the different clusters or groups with certain categorical data turned into factors with appropriate labels. 
 
 ```{r}
-adhd$Sex <-factor(adhd$Sex, levels = c(1,2), labels=c('Male','Female'))
+raw_adhd$Sex <-factor(raw_adhd$Sex, levels = c(1,2), labels=c('Male','Female'))
 
-adhd$Race <-factor(adhd$Race, levels=c(1,2,3,4,5,6), labels = c('White', 'African American', 'Hispanic', 'Asian', 'Native American', 'Other'))
+raw_adhd$Race <-factor(raw_adhd$Race, levels=c(1,2,3,4,5,6), labels = c('White', 'African American', 'Hispanic', 'Asian', 'Native American', 'Other'))
 ```
 
 
@@ -109,6 +146,78 @@ The total number of rows went from 175 to 142.
 
 ### Clustering
 
+#### k-means clustering
+
+For the Data preparation for K-means Clustering algorithm the following data preparation steps were made:
+
+
+- Remove Initial
+- Removal totalized features
+- Imputation of missing data with KNN: the remaining data was imputed with K-nearestneighbors (KNN) as a way to fill in missing gaps. alternative methods include median, mean, or bag imputations but it was determed that KNN provides the best results with minimal effect on computational effort.
+- Numeric to Factor Conversions
+- Newly transformed categorical variables were binarized into 0/1. k-means will not be able to distinguish the eucliiand distances properly between classes that span more than 2 categories. 
+
+- Normalization: features need to be normalized such that the distances they are centered and scaled the mean is 0 and the Stdev is 1, this scales all the data to allow kmeans to appropriately place centroids and observations at appropriate distances.
+
+- Colinearity test: Colinearity was tested and it was determined that there was not sufficient colinearity between any variables such that they needed to be removed for this reason alone.
+
+- Removed low-variance features: From Data Exploration section Stimulants seems like a low-variance variable with majority of categories recorded at 0. 
+
+
+```{r}
+Q_ADHD<-raw_adhd %>% recipe(~.) %>% 
+  step_rm(contains("total")) %>% 
+  step_impute_knn(all_predictors()) %>% 
+  step_mutate_at(-Age, fn = ~ as.factor(.)) %>% 
+  step_dummy(all_nominal(), one_hot = T) %>% 
+  step_normalize(all_predictors()) %>%
+  step_nzv(all_predictors()) %>% 
+  step_corr(all_predictors()) %>% 
+  prep() #%>% 
+
+Q_ADHD 
+```
+```{r}
+Clustering<-function(df, algorithm, method = "k-means"){
+  optimalk_theme<-theme(panel.background = element_blank(),
+                        panel.grid = element_blank(),
+                        panel.grid.major.x = element_line(color = "grey90", linetype = 2))
+  
+  p1<-factoextra::fviz_nbclust(df, algorithm, method = "wss")+
+    labs(x = "Centers (k)",
+         y = "SSE Width",
+         title = paste0(method," - Elbow Method for Determining Optimal k")) +
+    optimalk_theme
+  
+  p2<-factoextra::fviz_nbclust(df, algorithm, method = "silhouette")+
+    labs(x = "Centers (k)",
+         y = "Silhouette Width",
+         title = paste0(method," - silhouette Method for Determining Optimal k")) +
+    optimalk_theme
+  
+    p3<-factoextra::fviz_nbclust(df, algorithm, method = "gap_stat")+
+      labs(x = "Centers (k)",
+           title = paste0(method," - Gap Statistic for Determining Optimal k"))
+  
+  grid.arrange(p1,p2,p3, ncol = 1)
+}
+Clustering(Q_ADHD,kmeans, "K-means")
+```
+
+```{r}
+set.seed(2)
+for(i in 1:9){
+assign(paste0("A",i),
+       factoextra::fviz_cluster(kmeans(Q_ADHD, centers = i, iter.max = 100),Q_ADHD,
+                                ggtheme = defaulttheme,
+                                geom = "point",
+                                main = paste("Cluster Plot with K = ", i)))
+
+}
+
+
+gridExtra::grid.arrange(A1,A2,A3,A4,A5,A6,A7,A8,A9, ncol = 3)
+```
 
 #### Hierarchical Clustering
 
