@@ -18,18 +18,15 @@ library(naniar)
 library(corrplot)
 library(VIM)
 library(cluster)
-<<<<<<< HEAD
 library(recipes)
+library(factoextra)
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ## Introduction
 
 ML techniques can potentially offer new routes for learning patterns of human behavior; identifying mental health symptoms and risk factors; developing predictions about disease progression; and personalizing and optimizing therapies. In this project we will work with mental health dataset and use some of the unsupervised learning methods to cluster data to provide new insights, and to discover patterns and help structure the data.
-=======
-library(factoextra)
-knitr::opts_chunk$set(echo = TRUE)
-```
+
 
 ## Problem Statement 
 
@@ -38,13 +35,13 @@ research project. All identifying information, of course, has been removed. The 
 has the data (the tab name “Data”). The data dictionary is given in the second tab. You can get as
 creative as you want. The assignment is designed to really get you to think about how you could use
 different methods.
->>>>>>> c316e4d197890292a7eb2534c6352df502b89354
+
 
 ### Exploratory Data Analysis
 
 Exploration of the data is always the first step in data analysis. The main priorities of exploration is exploring data types, outliers, overall distribution of the data points, and missing data. We're also going to see if any transformation is possible. 
 
-<<<<<<< HEAD
+
 In this process we'll analye and visualize the data to get a better understanding of the data and glean insight from it. The process will involves the following steps:
 
 - Import the data
@@ -52,7 +49,6 @@ In this process we'll analye and visualize the data to get a better understandin
 - Process the data
 - Visualize the data
 =======
->>>>>>> c316e4d197890292a7eb2534c6352df502b89354
 
 ```{r}
 #Load the data
@@ -64,13 +60,11 @@ The data set is mostly compromised of "dbl" type, even though some of the column
 
 It's important to examine the data dictionary and see which columns might be combined or separated into different data sets.
 
-<<<<<<< HEAD
 The original dataframe contains 175 observations (i.e. survey participants) as rows and 54 columns as variables.
 The columns contain both qualitative and quantitative variables.
 Moreover, some columns represent categorical data but is encoded as numerical values.
 
-=======
->>>>>>> c316e4d197890292a7eb2534c6352df502b89354
+
 ------------------------------------------------------------------------------------------------------------------------------
 Data Dictionary:
 Sex: Male - 1, Female - 2
@@ -92,7 +86,7 @@ Psychiatric Meds: 0 – none; 1 – one psychotropic med; 2 – more than one ps
 Identifying the missing data from the data set:
 
 ```{r}
-<<<<<<< HEAD
+
 plot_missing(
   raw_adhd,
   group = list(Good = 0.05, OK = 0.4, Bad = 0.8, Remove = 1),
@@ -102,9 +96,7 @@ plot_missing(
   ggtheme = theme_gray(),
   theme_config = list(legend.position = c("bottom"))
 )
-=======
-plot_missing(raw_adhd)
->>>>>>> c316e4d197890292a7eb2534c6352df502b89354
+
 ```
 
 There are columns missing data, with the exception of Psychiatric Meds, most of the missing data appears imputable. The 'Psychiatric Meds' column is missing 67.43% of data points. Imputing the data for this column is not optimal since most of the data would be imputed.  
@@ -113,7 +105,7 @@ There are columns missing data, with the exception of Psychiatric Meds, most of 
 gg_miss_upset(raw_adhd)
 ```
 
-<<<<<<< HEAD
+
 ```{r}
 # rename data column names
 raw_adhd <- raw_adhd %>% dplyr::rename_all(funs(make.names(.)))
@@ -134,17 +126,13 @@ skim(raw_adhd)
 ```
 
 #### Data Cleaning 
-```{r}
-=======
 
 ```{r}
->>>>>>> c316e4d197890292a7eb2534c6352df502b89354
 #Remove the Psychiatric Medicine and Initial Columns from data set.
 adhd <- raw_adhd[-c(1, 54)]
 
 ```
 
-<<<<<<< HEAD
 #### Data Exploration
 
 The various distribution of the responses to the ADHD questionnaire are displayed below. Also Distribution of Binary and Ordinal Variables.
@@ -155,42 +143,36 @@ plot_histogram(raw_adhd, ggtheme = theme_linedraw())
 ```
 
 
-=======
 
 ```{r}
 #Examine the dataset after the removing initials and Psychiatric Medicine
 library(skimr)
 skim(adhd)
 ```
->>>>>>> c316e4d197890292a7eb2534c6352df502b89354
+
 #### Data Transformation / Further Data Exploration
 
 The columns Sex and Age are going to be converted to factors. When building future models, it's easier to read the different clusters or groups with certain categorical data turned into factors with appropriate labels. 
 
 ```{r}
-<<<<<<< HEAD
+
 raw_adhd$Sex <-factor(raw_adhd$Sex, levels = c(1,2), labels=c('Male','Female'))
 
 raw_adhd$Race <-factor(raw_adhd$Race, levels=c(1,2,3,4,5,6), labels = c('White', 'African American', 'Hispanic', 'Asian', 'Native American', 'Other'))
-=======
+
 adhd$Sex <-factor(adhd$Sex, levels = c(1,2), labels=c('Male','Female'))
 
 adhd$Race <-factor(adhd$Race, levels=c(1,2,3,4,5,6), labels = c('White', 'African American', 'Hispanic', 'Asian', 'Native American', 'Other'))
->>>>>>> c316e4d197890292a7eb2534c6352df502b89354
+
 ```
 
-
-There are minimal amount of rows missing data. Imputing the data might not be the optimal choice for this data. We can drop the rows with missing data and continue with analysis. The minimal amount of missing data will not have a significant impact on our models. 
-
-```{r}
-adhd_complete <- na.omit(adhd)
-```
-
-The total number of rows went from 175 to 142. 
 
 ### Clustering
 
-<<<<<<< HEAD
+Clustering is the most common form of unsupervised learning. It's a machine learning algorithm used to draw inferences from unlabeled data. The algorithm groups a set of data points into subsets. The goal is to create clusters that are have minimal variance internally, but maximum variance from external clusters. 
+
+There are methods to clustering data. One is agglomerative, each observation in a respective cluster then merging together until a stop criteria is reached. The second is divisive, with all observations in a single cluster and subsequent splitting occures until a stop criteria is met. 
+
 #### k-means clustering
 
 For the Data preparation for K-means Clustering algorithm the following data preparation steps were made:
@@ -263,29 +245,49 @@ assign(paste0("A",i),
 
 gridExtra::grid.arrange(A1,A2,A3,A4,A5,A6,A7,A8,A9, ncol = 3)
 ```
-=======
->>>>>>> c316e4d197890292a7eb2534c6352df502b89354
+
 
 #### Hierarchical Clustering
 
-```{r}
+Hierarchical Clustering works by repeatingly combining the two nearest clusters into a larger cluster. It is a bottom-up approach which doesn't require the specification of the number of clusters beforehand. 
 
+The final structure of the cluster is represented by a dendrogram diagram. 
+
+In order to perform hierarchical clustering we will perform the following:
+
+1. Normalize our continuous numerical values.Each observations feature values are presented as coordinates in n-dimensional space (n being the number of predictors/features). The distances between coordinates will be calculated in step 2 using a standard of measure. However, if the coordinates are normalized it may lead to false results.  
+2. Since we have binary data, as well as categorical data, we can use the Jaccard distance measure. 
+
+
+
+```{r}
+set.seed(300)
+#scale the numerical continuous data
+adhd1 %>% select_if( is.numeric) %>% lapply(scale) ->adhd1
+
+adhd1 <- as.data.frame(adhd1)
+adhd2 <- adhd1
+adhd2$Sex <- adhd$Sex
+adhd2$Race <- adhd$Race
 ```
 
 ```{r}
-
+#compute the distance
+dist_mat <- dist(adhd2, method = 'euclidean')
 ```
 
 ```{r}
+#select linkage method
 
+hclust_comp <- hclust(dist_mat, method = 'complete')
+plot(hclust_comp)
 ```
 
 ```{r}
-
-```
-
-```{r}
-
+#View the different clusters
+plot(hclust_avg)
+rect.hclust(hclust_avg , k = 4, border = 2:6)
+abline(h = 13.8, col = 'red')
 ```
 
 ```{r}
