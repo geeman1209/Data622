@@ -56,7 +56,7 @@ raw_adhd <- readxl::read_xlsx('ADHD_data.xlsx')
 glimpse(raw_adhd)
 ```
 
-The data set is mostly compromised of "dbl" type, even though some of the columns such as Sex and Race are prime candidates to be converted to factors. There is are unique values for 'Age' and 'Initial'. Since the column 'Initial' is a sort of identifier, we can safely remove it, the column is not necessary for analysis.
+The data set is mostly compromised of "dbl" type, even though some of the columns such as Sex and Race are prime candidates to be converted to factors. There are unique values for 'Age' and 'Initial'. Since the column 'Initial' is a sort of identifier, we can safely remove it, the column is not necessary for analysis.
 
 It's important to examine the data dictionary and see which columns might be combined or separated into different data sets.
 
@@ -106,13 +106,13 @@ gg_miss_upset(raw_adhd)
 ```
 
 
-```{r}
+```{r message=FALSE, warning=FALSE}
 # rename data column names
 raw_adhd <- raw_adhd %>% dplyr::rename_all(funs(make.names(.)))
 ```
 
 
-```{r}
+```{r message=FALSE, warning=FALSE}
 imputed_Data <- mice(raw_adhd, m=2, maxit = 2, method = 'cart', seed = 500)
 ```
 ```{r}
@@ -129,7 +129,7 @@ skim(raw_adhd)
 
 ```{r}
 #Remove the Psychiatric Medicine and Initial Columns from data set.
-adhd <- raw_adhd[-c(1, 54)]
+adhd_df <- raw_adhd[-c(1, 54)]
 
 ```
 
@@ -138,17 +138,11 @@ adhd <- raw_adhd[-c(1, 54)]
 The various distribution of the responses to the ADHD questionnaire are displayed below. Also Distribution of Binary and Ordinal Variables.
 
 ```{r}
-plot_histogram(raw_adhd, ggtheme = theme_linedraw())
+plot_histogram(adhd_df, ggtheme = theme_linedraw())
 
 ```
+After observing the plots to assess how the distributions involved in the dataset. Based on the histrograms plotted above, we can note that there are many observations although numeric, behave as categorical features and this will need to be assessed when performing the kmeans clustering analysis. There does not seem to be any clear distinguishable outliers however there does seem to be some features that experience low variance such Stimulants where majority of the recorded observations are 0.
 
-
-
-```{r}
-#Examine the dataset after the removing initials and Psychiatric Medicine
-library(skimr)
-skim(adhd)
-```
 
 #### Data Transformation / Further Data Exploration
 
@@ -156,16 +150,20 @@ The columns Sex and Age are going to be converted to factors. When building futu
 
 ```{r}
 
-raw_adhd$Sex <-factor(raw_adhd$Sex, levels = c(1,2), labels=c('Male','Female'))
+adhd_df$Sex <-factor(adhd_df$Sex, levels = c(1,2), labels=c('Male','Female'))
 
-raw_adhd$Race <-factor(raw_adhd$Race, levels=c(1,2,3,4,5,6), labels = c('White', 'African American', 'Hispanic', 'Asian', 'Native American', 'Other'))
-
-adhd$Sex <-factor(adhd$Sex, levels = c(1,2), labels=c('Male','Female'))
-
-adhd$Race <-factor(adhd$Race, levels=c(1,2,3,4,5,6), labels = c('White', 'African American', 'Hispanic', 'Asian', 'Native American', 'Other'))
+adhd_df$Race <-factor(adhd_df$Race, levels=c(1,2,3,4,5,6), labels = c('White', 'African American', 'Hispanic', 'Asian', 'Native American', 'Other'))
 
 ```
 
+```{r}
+adhd_df[sapply(adhd_df, is.double)] <- lapply(adhd_df[sapply(adhd_df, is.double)], as.factor)
+
+```
+
+```{r}
+glimpse(adhd_df)
+```
 
 ### Clustering
 
@@ -175,12 +173,11 @@ There are methods to clustering data. One is agglomerative, each observation in 
 
 #### k-means clustering
 
-For the Data preparation for K-means Clustering algorithm the following data preparation steps were made:
+K-means clustering is one of the simplest and popular unsupervised machine learning algorithms. Typically, unsupervised algorithms make inferences from datasets using only input vectors without referring to known, or labelled, outcomes.
 
+To perform a cluster analysis in R, generally, the data should be prepared as follows:
 
-- Remove Initial
 - Removal totalized features
-- Imputation of missing data with KNN: the remaining data was imputed with K-nearestneighbors (KNN) as a way to fill in missing gaps. alternative methods include median, mean, or bag imputations but it was determed that KNN provides the best results with minimal effect on computational effort.
 - Numeric to Factor Conversions
 - Newly transformed categorical variables were binarized into 0/1. k-means will not be able to distinguish the eucliiand distances properly between classes that span more than 2 categories. 
 
@@ -192,58 +189,90 @@ For the Data preparation for K-means Clustering algorithm the following data pre
 
 
 ```{r}
-Q_ADHD<-raw_adhd %>% recipe(~.) %>% 
+adhd_df %>% recipe(~.) %>% 
   step_rm(contains("total")) %>% 
-  step_impute_knn(all_predictors()) %>% 
-  step_mutate_at(-Age, fn = ~ as.factor(.)) %>% 
+  #step_mutate_at(-Age, fn = ~ as.factor(.)) %>% 
   step_dummy(all_nominal(), one_hot = T) %>% 
   step_normalize(all_predictors()) %>%
   step_nzv(all_predictors()) %>% 
   step_corr(all_predictors()) %>% 
   prep() #%>% 
+```
+The classification of observations into groups requires some methods for computing the distance or the (dis)similarity between each pair of observations. 
+The choice of distance measures is a critical step in clustering. It defines how the similarity of two elements (x, y) is calculated and it will influence the shape of the clusters. The choice also has has a strong influence on the clustering results.
 
-Q_ADHD 
-```
-```{r}
-Clustering<-function(df, algorithm, method = "k-means"){
-  optimalk_theme<-theme(panel.background = element_blank(),
-                        panel.grid = element_blank(),
-                        panel.grid.major.x = element_line(color = "grey90", linetype = 2))
-  
-  p1<-factoextra::fviz_nbclust(df, algorithm, method = "wss")+
-    labs(x = "Centers (k)",
-         y = "SSE Width",
-         title = paste0(method," - Elbow Method for Determining Optimal k")) +
-    optimalk_theme
-  
-  p2<-factoextra::fviz_nbclust(df, algorithm, method = "silhouette")+
-    labs(x = "Centers (k)",
-         y = "Silhouette Width",
-         title = paste0(method," - silhouette Method for Determining Optimal k")) +
-    optimalk_theme
-  
-    p3<-factoextra::fviz_nbclust(df, algorithm, method = "gap_stat")+
-      labs(x = "Centers (k)",
-           title = paste0(method," - Gap Statistic for Determining Optimal k"))
-  
-  grid.arrange(p1,p2,p3, ncol = 1)
-}
-Clustering(Q_ADHD,kmeans, "K-means")
-```
+the default distance measure is the Euclidean distance. However, depending on the type of the data and the research questions, other dissimilarity measures might be preferred and you should be aware of the options.
+
+Within R it is simple to compute and visualize the distance matrix using the functions get_dist and fviz_dist from the factoextra R package.
 
 ```{r}
-set.seed(2)
-for(i in 1:9){
-assign(paste0("A",i),
-       factoextra::fviz_cluster(kmeans(Q_ADHD, centers = i, iter.max = 100),Q_ADHD,
-                                ggtheme = defaulttheme,
-                                geom = "point",
-                                main = paste("Cluster Plot with K = ", i)))
+distance <- get_dist(adhd_df)
+fviz_dist(distance, gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07"))
 
-}
+```
 
 
-gridExtra::grid.arrange(A1,A2,A3,A4,A5,A6,A7,A8,A9, ncol = 3)
+```{r}
+df <- na.omit(adhd_df)
+k2 <- kmeans(df, centers = 2, nstart = 25)
+k3 <- kmeans(df, centers = 3, nstart = 25)
+k4 <- kmeans(df, centers = 4, nstart = 25)
+k5 <- kmeans(df, centers = 5, nstart = 25)
+str(k2)
+```
+We can also view our results by using fviz_cluster. This provides a nice illustration of the clusters. If there are more than two dimensions (variables) fviz_cluster will perform principal component analysis (PCA) and plot the data points according to the first two principal components that explain the majority of the variance.
+
+Because the number of clusters (k) must be set before we start the algorithm, it is often advantageous to use several different values of k and examine the differences in the results. We can execute the same process for 3, 4, and 5 clusters, and the results are shown in the figure:
+
+```{r}
+# I had to convert df back to numeric to plot the clusters
+
+df[sapply(df, is.factor)] <- lapply(df[sapply(df, is.factor)], as.numeric)
+
+p1 <- fviz_cluster(k2, geom = "point", data = df) + ggtitle("k = 2")
+p2 <- fviz_cluster(k3, geom = "point",  data = df) + ggtitle("k = 3")
+p3 <- fviz_cluster(k4, geom = "point",  data = df) + ggtitle("k = 4")
+p4 <- fviz_cluster(k5, geom = "point",  data = df) + ggtitle("k = 5")
+
+library(gridExtra)
+grid.arrange(p1, p2, p3, p4, nrow = 2)
+```
+
+**Determining Optimal Clusters**
+
+As you may recall the analyst specifies the number of clusters to use; preferably the analyst would like to use the optimal number of clusters. To aid the analyst, the following explains the three most popular methods for determining the optimal clusters, which includes:
+
+- Elbow method
+- Silhouette method
+- Gap statistic
+
+Recall that, the basic idea behind cluster partitioning methods, such as k-means clustering, is to define clusters such that the total intra-cluster variation (known as total within-cluster variation or total within-cluster sum of square) is minimized
+
+The total within-cluster sum of square (wss) measures the compactness of the clustering and we want it to be as small as possible. Thus, we can use the following algorithm to define the optimal clusters:
+
+- Compute clustering algorithm (e.g., k-means clustering) for different values of k. For instance, by varying k from 1 to 10 clusters
+- For each k, calculate the total within-cluster sum of square (wss)
+- Plot the curve of wss according to the number of clusters k.
+- The location of a bend (knee) in the plot is generally considered as an indicator of the appropriate number of clusters.
+
+
+Fortunately, this process to compute the “Elbow method” has been wrapped up in a single function (fviz_nbclust):
+
+```{r}
+set.seed(123)
+
+fviz_nbclust(df, kmeans, method = "wss")
+```
+The results suggest that 4 is the optimal number of clusters as it appears to be the bend in the knee (or elbow).
+
+**Extracting Results**
+
+With most of these approaches suggesting 2 as the number of optimal clusters, we can perform the final analysis and extract the results using 2 clusters.
+
+```{r}
+set.seed(123)
+final <- kmeans(df, 2, nstart = 25)
+fviz_cluster(final, data = df)
 ```
 
 
@@ -290,12 +319,73 @@ rect.hclust(hclust_avg , k = 4, border = 2:6)
 abline(h = 13.8, col = 'red')
 ```
 
+#### Question 2 Principal Component Analysis (PCA)
+
+PCA commonly used for dimensionality reduction by using each data point onto only the first few principal components (most cases first and second dimensions) to obtain lower-dimensional data while keeping as much of the data’s variation as possible.
+
+Features that are strongly correlated with each other are more suitable for PCA than those loosely related. Below corrplot using the Spearman correlation for the categorical variables demonstrate that the features within ADHD set are more strongly correlated than the MD set. In addition, there are too many missing values for the individual substance misuse, and therefore PCA is not performed on this set. For question 2, we conduct PCA on both ADHD and MD, but ADHD is demonstrated to be more suitable for the task.
+
+##### PCA - ADHD
+
 ```{r}
+# pca - ADHD
+PCA_adhd <- prcomp(df %>% dplyr::select(contains("adhd.")))
 
 ```
 
 ```{r}
+sd <- PCA_adhd$sdev
+loadings <- PCA_adhd$rotation
+rownames(loadings) <- colnames(df %>% dplyr::select(contains("adhd.")))
+scores <- PCA_adhd$x
 
+summary(PCA_adhd)
+```
+
+We will visualize the results using scree and cumulative variance plot. The scree plot (“elbow” method)indicate that the first 4 components are the most important ones, although they merely captured roughly 32% of the variance in the data. The first 29 components have the standard deviation above 1 and together they captured 77% of the variance. The number of dimensions is significantly reduced from 91 to 29 in this case.
+
+```{r}
+par(mfrow = c(1, 2))
+
+# scree plot
+screeplot(PCA_adhd, type = "l", npcs = 30, main = "Screeplot of the first 30 PCs")
+abline(h = 1, col = "red", lty = 5)
+legend("topright", legend = c("Eigenvalue = 1"), col = c("red"), lty = 5, cex = 0.6)
+
+# cumulative variance plot
+cumpro <- cumsum(PCA_adhd$sdev^2 / sum(PCA_adhd$sdev^2))
+plot(cumpro[0:30], xlab = "PC #", ylab = "Amount of explained variance", main = "Cumulative variance plot")
+```
+**Loading**
+
+Loadings are interpreted as the coefficients of the linear combination of the initial variables from which the principal components are constructed. From a numerical point of view, the loadings are equal to the coordinates of the variables divided by the square root of the eigenvalue associated with the component.
+
+adhd_total is the most important contributor to the first principal component. PC1 is made up by majority of "_X4" variables, meaning the response of “very often” from the ADHD questions; whereas PC2 is made up by majority of "_X0" variables, meaning the response of “never” from the ADHD questions. As expected, PCA successfully extract components from features that are not strongly associated to each other.
+
+```{r}
+library(kableExtra)
+cut_off <- sqrt(1/ncol(df %>% dplyr::select(contains("adhd.")))) 
+
+loadingsDf <- loadings %>% 
+    as.data.frame() %>% 
+    tibble::rownames_to_column() %>%
+    dplyr::select(variables = rowname, everything())
+
+pc1_important <- loadingsDf %>% 
+    dplyr::filter(abs(PC1) > cut_off) %>%
+    dplyr::select(variables, PC1) %>%
+    arrange(desc(abs(PC1)))
+
+pc1_important %>% 
+  kable() %>%
+  scroll_box()
+```
+
+The biplot displays the individuals and variables in the same plot featuring the first two principal components. It seems to suggest that the individuals can be visually clustered into 4 groups based on their responses to the ADHD questions.
+
+
+```{r}
+biplot(PCA_adhd, scale = 0, cex = 0.5)
 ```
 
 ```{r}
