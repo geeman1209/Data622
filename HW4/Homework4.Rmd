@@ -130,6 +130,7 @@ skim(raw_adhd)
 ```{r}
 #Remove the Psychiatric Medicine and Initial Columns from data set.
 adhd_df <- raw_adhd[-c(1, 54)]
+jus_nums <- raw_adhd[-c(1, 54)]
 
 ```
 
@@ -154,6 +155,7 @@ adhd_df$Sex <-factor(adhd_df$Sex, levels = c(1,2), labels=c('Male','Female'))
 
 adhd_df$Race <-factor(adhd_df$Race, levels=c(1,2,3,4,5,6), labels = c('White', 'African American', 'Hispanic', 'Asian', 'Native American', 'Other'))
 
+adhd <- adhd_df
 ```
 
 ```{r}
@@ -285,45 +287,87 @@ The final structure of the cluster is represented by a dendrogram diagram.
 In order to perform hierarchical clustering we will perform the following:
 
 1. Normalize our continuous numerical values.Each observations feature values are presented as coordinates in n-dimensional space (n being the number of predictors/features). The distances between coordinates will be calculated in step 2 using a standard of measure. However, if the coordinates are normalized it may lead to false results.  
-2. Since we have binary data, as well as categorical data, we can use the Jaccard distance measure. 
 
+The continous variables in the data set are Age, MD.Total, and MD.Total. 
 
 
 ```{r}
 set.seed(300)
 #scale the numerical continuous data
-adhd1 %>% select_if( is.numeric) %>% lapply(scale) ->adhd1
 
-adhd1 <- as.data.frame(adhd1)
-adhd2 <- adhd1
-adhd2$Sex <- adhd$Sex
-adhd2$Race <- adhd$Race
+adhd3 <- adhd_df
+adhd3$Age <- as.numeric(adhd3$Age)
+adhd3$MD.TOTAL <- as.numeric(adhd3$MD.TOTAL)
+adhd3$ADHD.Total <- as.numeric(adhd3$ADHD.Total)
+adhd3 %>% select_if(is.numeric) %>% lapply(scale) ->adhd3
+adhd3 <- as.data.frame(adhd3)
+adhd4 <- adhd_df
+adhd4$Age <- adhd3$Age
+adhd4$ADHD.Total <- adhd3$ADHD.Total
+adhd4$MD.TOTAL <- adhd3$MD.TOTAL
 ```
+
+2. We will use the euclidean measure of distance. The default of the dist function is euclidean which is the square distance between two vectors. 
 
 ```{r}
 #compute the distance
-dist_mat <- dist(adhd2, method = 'euclidean')
+dist_mat <- dist(adhd4, method = 'euclidean')
 ```
+
+3. The linkage method selected is 'ward.D2'. The 'average' method was originally tested, but the clusters were not as complete. The ward method minimizes the total variance within the clusters. 
 
 ```{r}
 #select linkage method
 
-hclust_comp <- hclust(dist_mat, method = 'complete')
+hclust_comp <- hclust(dist_mat, method = 'ward.D2')
 plot(hclust_comp)
 ```
 
+4. Find the optimal number of clusters. We're going to utilize the "NbClust" library and visualize the optimal number of clusters. In order to use the NbClust function, the numerical-only data set is necessary. 
+
+
 ```{r}
-#View the different clusters
-plot(hclust_avg)
-rect.hclust(hclust_avg , k = 4, border = 2:6)
-abline(h = 13.8, col = 'red')
+library(NbClust)
+adhd_clust <- NbClust(
+                      data = scale(jus_nums),
+                      distance = 'euclidean',
+                      min.nc = 2, 
+                      max.nc = 10,
+                      method="ward.D2", 
+                      index="all")
 ```
 
+I tried the scale and unscaled versions of the data set, the optimal cluster is 2. So that's going to be our k in our dendrogram. 
+
+```{r}
+#View the different clusters
+plot(hclust_comp)
+rect.hclust(hclust_comp , k = 2, border = 2:6)
+#abline(h = 39, col = 'red')
+```
+
+```{r}
+hierarchyGroups <- cutree(hclust_comp, 2)
+```
+
+
+```{r}
+fviz_cluster(list(data = jus_nums, cluster = hierarchyGroups))
+```
+
+Looking at the cluster plots, we get two distinct clusters. The next step is identifying the two groups.
+
+#### Identity Groups
+
+
+
+
+------------------------------------------------------------------------------------------------------------------------------------------------------
 #### Question 2 Principal Component Analysis (PCA)
 
 PCA commonly used for dimensionality reduction by using each data point onto only the first few principal components (most cases first and second dimensions) to obtain lower-dimensional data while keeping as much of the data’s variation as possible.
 
-Features that are strongly correlated with each other are more suitable for PCA than those loosely related. Below corrplot using the Spearman correlation for the categorical variables demonstrate that the features within ADHD set are more strongly correlated than the MD set. In addition, there are too many missing values for the individual substance misuse, and therefore PCA is not performed on this set. For question 2, we conduct PCA on both ADHD and MD, but ADHD is demonstrated to be more suitable for the task.
+Features that are strongly correlated with each other plotare more suitable for PCA than those loosely related. Below corrplot using the Spearman correlation for the categorical variables demonstrate that the features within ADHD set are more strongly correlated than the MD set. In addition, there are too many missing values for the individual substance misuse, and therefore PCA is not performed on this set. For question 2, we conduct PCA on both ADHD and MD, but ADHD is demonstrated to be more suitable for the task.
 
 ##### PCA - ADHD
 
@@ -387,9 +431,208 @@ The biplot displays the individuals and variables in the same plot featuring the
 ```{r}
 biplot(PCA_adhd, scale = 0, cex = 0.5)
 ```
+------------------------------------------------------------------------------------------------------------------------------------------------------
+### Question 3 Gradient Boosting
+
+
+
+
+
+
+------------------------------------------------------------------------------------------------------------------------------------------------------
+### Question 4 Support Vector Machine
+
+SVM (Support Vector Machines) are a supervised learning method that can be used for classification and regression analysis. Typically, there are used more for classification. The basic idea of SVM is to create an optimal hyperplane to linearly seperate variables, using support vectors. Support vectors are the data points the are closest to the hyperplane. These are the points that are most difficult to classify.  The goal of SVM is to create the best hyperplane, or one that maximizes the distance/magrin between the support vectors. SVM does work with non-linear data using kernal functions. Kernal Functions maps the data points to a higher dimension. 
+
+For the purposes of this question, we want to use SVM to classify suicides. In order to use SVM, we're going to need to reduce the total dimensions in the data set. SVM works best with less dimensions, in order to perform dimension reduction, we're going to apply 2 approaches. One is to eliminate variables with higher than normal levels of correlation and secondly, implement PCA to create new variables that account for most of the data. 
+
+
+#### SVM with Dimension Reduction using Correlation 
+
+We're going to create a new data set and convert Suicide into a factor.
+
+```{r}
+adhd_svm_data <- adhd
+adhd_svm_data$Suicide<- factor(adhd_svm_data$Suicide)
+```
+
+Selecting only the numerical values, a corr plot is developed in an effort to identify variables with high correlation values. Once they're identified, the total number of variables can be reduced. Just by isolating the numerical columns, there are 49 columns.
+
+```{r}
+adhd_svm_data %>% select_if(is.numeric) %>% cor() -> svmCor
+corrplot(svmCor, method = 'circle')
+```
+
+
+
+```{r}
+svmNumerical <- adhd_svm_data %>% dplyr::select( -Race, -Suicide, -Sex)
+svmNumerical <- svmNumerical[,-c(nearZeroVar(svmNumerical))]
+corr_data <- findCorrelation(svmCor, cutoff = 0.55)
+svmNumerical2 <- svmNumerical[, -corr_data]
+```
+
+After cutting off correlation at 0.55, the number of variables left are 29 continuous variables. In total, we are moving forward with this SVM model with 33 variables.
+
+```{r}
+svmNumerical2$Race <- adhd_svm_data$Race
+svmNumerical2$Suicide <- adhd_svm_data$Suicide
+svmNumerical2$Sex <- adhd_svm_data$Sex
+```
+
+
+```{r}
+set.seed(100)
+
+#Create Data Partition 
+
+initsplit <- createDataPartition(svmNumerical2$Suicide, p=0.8, list=FALSE)
+
+
+#Create Training Data to tune the model
+training <- svmNumerical2[initsplit,]
+
+
+#Create testing data to evaluate the model
+test <- svmNumerical2[-initsplit,]
+
+```
+
 
 ```{r}
 
+svmfit_s = svm(Suicide ~ ., data = training, kernel = "sigmoid", cost = 10, scale = TRUE)
+svmfit_r = svm(Suicide ~ ., data = training, kernel = "radial", cost = 10, scale = TRUE)
+svmfit_l =svm(Suicide ~ ., data = training, kernel = "linear", cost = 10, scale = TRUE)
 ```
+
+```{r}
+svmPre1<-predict(svmfit_s,test)
+svm1<-confusionMatrix(svmPre1,test$Suicide)
+svm1
+```
+
+```{r}
+svmPre2<-predict(svmfit_r,test)
+svm2<-confusionMatrix(svmPre2,test$Suicide)
+svm2
+```
+
+
+```{r}
+svmPre3<-predict(svmfit_l,test)
+svm3<-confusionMatrix(svmPre3,test$Suicide)
+svm3
+```
+
+
+#### SVM - Dimension Reduction with PCA 
+
+Using the 'jus_nums' data set (all the variables are still numerical but with imputed values).
+
+```{r}
+#jus_nums2 <- jus_nums %>% dplyr::select(-MD.TOTAL, -ADHD.Total)
+jus_nums2$Suicide <- as.factor(jus_nums2$Suicide)
+
+```
+
+```{r}
+PCA_svm <- prcomp(jus_nums2 %>%dplyr :: select(-Suicide), center = TRUE, scale. = TRUE)
+summary(PCA_svm)
+```
+
+```{r}
+fviz_pca_biplot(PCA_svm, label="var",
+             habillage = jus_nums2$Suicide,
+             addEllipses = TRUE, palette = "jco")
+
+```
+
+When can see the the 2 most important components of the account for 34.781 % of the data. We can utilize 34-35 components, those cover a little over 95% of the data, however, the fear is to overfit the model. It is necessary to reduce the number of PCA components so we can continue building our SVM model. The 'elbow method' can be used to reduce the overall number of compnents. 
+
+```{r}
+fviz_eig(PCA_svm, addlabels = TRUE)
+```
+
+Looking at the scree plot, the optimal number of PCA components is 3, the rate of decrease slows down after 3. Using the three principal components, the next step is to create a new data set with Suicide as the fifth column. After the new data set is created, we can split the data into training and testing sets. The new data set will have 4 total columns, a large reduction in dimensions from the original data set. 
+
+```{r}
+#Select the 4 components and assign to a new variable 
+pca_3 <- PCA_svm$x[,1:3]
+
+#create new data set
+
+pca_new <- cbind(as.data.frame(pca_4), Suicide = jus_nums2$Suicide)
+```
+
+
+```{r}
+set.seed(100)
+
+#Create Data Partition 
+
+initsplit <- createDataPartition(pca_new$Suicide, p=0.8, list=FALSE)
+
+
+#Create Training Data to tune the model
+training2 <- pca_new[initsplit,]
+
+
+#Create testing data to evaluate the model
+test2 <- pca_new[-initsplit,]
+
+
+```
+
+We're going to build several models using different kernals. 
+
+```{r}
+svmfit2 = svm(Suicide ~ ., data = training2, kernel = "radial", cost = 10, scale = FALSE)
+svmfit3 = svm(Suicide ~ ., data = training2, kernel = "linear", cost = 10, scale = FALSE)
+svmfit4 = svm(Suicide ~ ., data = training2, kernel = "sigmoid", cost = 10, scale = FALSE)
+```
+
+Radial Kernal Results
+
+```{r}
+svmPre2<-predict(svmfit2,test2)
+svm2<-confusionMatrix(svmPre2,test$Suicide)
+svm2
+```
+Linear Kernal Results
+
+```{r}
+svmPre3<-predict(svmfit3,test2)
+svm3<-confusionMatrix(svmPre3,test$Suicide)
+svm3
+```
+Sigmoid Kernal Results
+
+```{r}
+svmPre4<-predict(svmfit4,test2)
+svm4<-confusionMatrix(svmPre4,test$Suicide)
+svm4
+```
+
+#### Selecting a final model
+
+Interestingly, three of the six models results in the same level of accuracy with the testing data. The model using the sigmoid kernal with reduced variables due to correlation was the best out of that approach. On the other hand, the linear and radial kernal returned similar results using PCA to trim the overall variables. Now, it is important to look into the sensitivity and specifity of the top models. The specificity of 2 of the top models was 50% and 40% respectively, while the third model had a specificity of 0%. This is really important because of the topic and our end goals. The goal is to detect suicide in patients. 1 of the models can predict suicide at the rate of a coin toss and the second less than that, which is terrible. I would rather go with the third model that has no specificity. The model with a 100% sensitivity can at least RULE out non-suicidal people. In a real world enviroment, it's better to be wrong about who you think is suicidal then accidental classify someone as non-suicidal who actually is suicidal. Also, the PCA models contain a much reduced dimesionality, making them easier models. In a professional setting, the downside of such models would be explaining it to a non-technical audience. 
+
+
+
+Sources:
+
+https://towardsdatascience.com/linear-discriminant-analysis-lda-101-using-r-6a97217a55a6
+
+https://towardsdatascience.com/principal-component-analysis-pca-101-using-r-361f4c53a9ff
+
+https://towardsdatascience.com/4-ways-to-reduce-dimensionality-of-data-8f82e6565a07
+
+https://www.datacamp.com/community/tutorials/hierarchical-clustering-R#what
+
+
+
+
+
 
 
