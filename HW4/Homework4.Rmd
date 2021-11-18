@@ -622,14 +622,12 @@ Interestingly, three of the six models results in the same level of accuracy wit
 
 Sources:
 
-https://towardsdatascience.com/linear-discriminant-analysis-lda-101-using-r-6a97217a55a6
-
-https://towardsdatascience.com/principal-component-analysis-pca-101-using-r-361f4c53a9ff
-
-https://towardsdatascience.com/4-ways-to-reduce-dimensionality-of-data-8f82e6565a07
-
-https://www.datacamp.com/community/tutorials/hierarchical-clustering-R#what
-
+- https://towardsdatascience.com/linear-discriminant-analysis-lda-101-using-r-6a97217a55a6
+- https://towardsdatascience.com/principal-component-analysis-pca-101-using-r-361f4c53a9ff
+- https://towardsdatascience.com/4-ways-to-reduce-dimensionality-of-data-8f82e6565a07
+- https://www.datacamp.com/community/tutorials/hierarchical-clustering-R#what
+- Kmean clustring https://uc-r.github.io/kmeans_clustering
+- gradient boosting machine in R : https://www.storybench.org/tidytuesday-bike-rentals-part-2-modeling-with-gradient-boosting-machine/
 
 
 
