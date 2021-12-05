@@ -2,11 +2,24 @@
 title: "HMK4 | ADHD Prediction"
 author: "Abdellah Ait Elmouden | Gabriel Abreu |  Jered Ataky"
 date: "11/10/2021"
-output: html_document
+output:
+  html_document:
+    code_folding: hide
+    theme: cerulean
+    toc: yes
+    toc_float:
+      collapsed: yes
+      smooth_scroll: yes
+  pdf_document:
+    toc: yes
 ---
 
 
 ```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message=F, warning=F)
+```
+
+```{r}
 library(GGally)
 library(caret)
 library(mice)
@@ -37,7 +50,7 @@ creative as you want. The assignment is designed to really get you to think abou
 different methods.
 
 
-### Exploratory Data Analysis
+## Exploratory Data Analysis
 
 Exploration of the data is always the first step in data analysis. The main priorities of exploration is exploring data types, outliers, overall distribution of the data points, and missing data. We're also going to see if any transformation is possible. 
 
@@ -48,7 +61,6 @@ In this process we'll analye and visualize the data to get a better understandin
 - Clean the data
 - Process the data
 - Visualize the data
-=======
 
 ```{r}
 #Load the data
@@ -106,13 +118,13 @@ gg_miss_upset(raw_adhd)
 ```
 
 
-```{r message=FALSE, warning=FALSE}
+```{r}
 # rename data column names
 raw_adhd <- raw_adhd %>% dplyr::rename_all(funs(make.names(.)))
 ```
 
 
-```{r message=FALSE, warning=FALSE}
+```{r}
 imputed_Data <- mice(raw_adhd, m=2, maxit = 2, method = 'cart', seed = 500)
 ```
 ```{r}
@@ -125,16 +137,17 @@ library(skimr)
 skim(raw_adhd)
 ```
 
-#### Data Cleaning 
 
+
+### Data Cleaning & Exploration
+
+First, we are going to remove the Psychiatric Medicine and Initial Columns from data set.
 ```{r}
-#Remove the Psychiatric Medicine and Initial Columns from data set.
+
 adhd_df <- raw_adhd[-c(1, 54)]
 jus_nums <- raw_adhd[-c(1, 54)]
 
 ```
-
-#### Data Exploration
 
 The various distribution of the responses to the ADHD questionnaire are displayed below. Also Distribution of Binary and Ordinal Variables.
 
@@ -145,7 +158,7 @@ plot_histogram(adhd_df, ggtheme = theme_linedraw())
 After observing the plots to assess how the distributions involved in the dataset. Based on the histrograms plotted above, we can note that there are many observations although numeric, behave as categorical features and this will need to be assessed when performing the kmeans clustering analysis. There does not seem to be any clear distinguishable outliers however there does seem to be some features that experience low variance such Stimulants where majority of the recorded observations are 0.
 
 
-#### Data Transformation / Further Data Exploration
+### Data Transformation / Further Data Exploration
 
 The columns Sex and Age are going to be converted to factors. When building future models, it's easier to read the different clusters or groups with certain categorical data turned into factors with appropriate labels. 
 
@@ -167,13 +180,13 @@ adhd_df[sapply(adhd_df, is.double)] <- lapply(adhd_df[sapply(adhd_df, is.double)
 glimpse(adhd_df)
 ```
 
-### Clustering
+## Clustering
 
 Clustering is the most common form of unsupervised learning. It's a machine learning algorithm used to draw inferences from unlabeled data. The algorithm groups a set of data points into subsets. The goal is to create clusters that are have minimal variance internally, but maximum variance from external clusters. 
 
 There are methods to clustering data. One is agglomerative, each observation in a respective cluster then merging together until a stop criteria is reached. The second is divisive, with all observations in a single cluster and subsequent splitting occures until a stop criteria is met. 
 
-#### k-means clustering
+### k-means clustering
 
 K-means clustering is one of the simplest and popular unsupervised machine learning algorithms. Typically, unsupervised algorithms make inferences from datasets using only input vectors without referring to known, or labelled, outcomes.
 
@@ -200,6 +213,7 @@ adhd_df %>% recipe(~.) %>%
   step_corr(all_predictors()) %>% 
   prep() #%>% 
 ```
+
 The classification of observations into groups requires some methods for computing the distance or the (dis)similarity between each pair of observations. 
 The choice of distance measures is a critical step in clustering. It defines how the similarity of two elements (x, y) is calculated and it will influence the shape of the clusters. The choice also has has a strong influence on the clustering results.
 
@@ -215,7 +229,16 @@ fviz_dist(distance, gradient = list(low = "#00AFBB", mid = "white", high = "#FC4
 
 
 ```{r}
-df <- na.omit(adhd_df)
+
+adhd_df <- adhd_df[, -c(2,3)]
+
+```
+
+
+```{r}
+
+df <- adhd_df
+
 k2 <- kmeans(df, centers = 2, nstart = 25)
 k3 <- kmeans(df, centers = 3, nstart = 25)
 k4 <- kmeans(df, centers = 4, nstart = 25)
@@ -227,6 +250,7 @@ We can also view our results by using fviz_cluster. This provides a nice illustr
 Because the number of clusters (k) must be set before we start the algorithm, it is often advantageous to use several different values of k and examine the differences in the results. We can execute the same process for 3, 4, and 5 clusters, and the results are shown in the figure:
 
 ```{r}
+
 # I had to convert df back to numeric to plot the clusters
 
 df[sapply(df, is.factor)] <- lapply(df[sapply(df, is.factor)], as.numeric)
@@ -278,7 +302,7 @@ fviz_cluster(final, data = df)
 ```
 
 
-#### Hierarchical Clustering
+### Hierarchical Clustering
 
 Hierarchical Clustering works by repeatingly combining the two nearest clusters into a larger cluster. It is a bottom-up approach which doesn't require the specification of the number of clusters beforehand. 
 
@@ -355,21 +379,17 @@ hierarchyGroups <- cutree(hclust_comp, 2)
 fviz_cluster(list(data = jus_nums, cluster = hierarchyGroups))
 ```
 
-Looking at the cluster plots, we get two distinct clusters. The next step is identifying the two groups.
-
-#### Identity Groups
+Looking at the cluster plots, we get two distinct clusters. 
 
 
 
-
-------------------------------------------------------------------------------------------------------------------------------------------------------
-#### Question 2 Principal Component Analysis (PCA)
+## Principal Component Analysis (PCA)
 
 PCA commonly used for dimensionality reduction by using each data point onto only the first few principal components (most cases first and second dimensions) to obtain lower-dimensional data while keeping as much of the data’s variation as possible.
 
 Features that are strongly correlated with each other plotare more suitable for PCA than those loosely related. Below corrplot using the Spearman correlation for the categorical variables demonstrate that the features within ADHD set are more strongly correlated than the MD set. In addition, there are too many missing values for the individual substance misuse, and therefore PCA is not performed on this set. For question 2, we conduct PCA on both ADHD and MD, but ADHD is demonstrated to be more suitable for the task.
 
-##### PCA - ADHD
+### PCA - ADHD
 
 ```{r}
 # pca - ADHD
@@ -400,6 +420,7 @@ legend("topright", legend = c("Eigenvalue = 1"), col = c("red"), lty = 5, cex = 
 cumpro <- cumsum(PCA_adhd$sdev^2 / sum(PCA_adhd$sdev^2))
 plot(cumpro[0:30], xlab = "PC #", ylab = "Amount of explained variance", main = "Cumulative variance plot")
 ```
+
 **Loading**
 
 Loadings are interpreted as the coefficients of the linear combination of the initial variables from which the principal components are constructed. From a numerical point of view, the loadings are equal to the coordinates of the variables divided by the square root of the eigenvalue associated with the component.
@@ -407,6 +428,7 @@ Loadings are interpreted as the coefficients of the linear combination of the in
 adhd_total is the most important contributor to the first principal component. PC1 is made up by majority of "_X4" variables, meaning the response of “very often” from the ADHD questions; whereas PC2 is made up by majority of "_X0" variables, meaning the response of “never” from the ADHD questions. As expected, PCA successfully extract components from features that are not strongly associated to each other.
 
 ```{r}
+
 library(kableExtra)
 cut_off <- sqrt(1/ncol(df %>% dplyr::select(contains("adhd.")))) 
 
@@ -429,25 +451,145 @@ The biplot displays the individuals and variables in the same plot featuring the
 
 
 ```{r}
+
 biplot(PCA_adhd, scale = 0, cex = 0.5)
 ```
-------------------------------------------------------------------------------------------------------------------------------------------------------
-### Question 3 Gradient Boosting
+
+
+
+## Gradient Boosting
+
+
+We are going to use gbm to fit gradient boosting model.
+
+```{r}
+library(gbm)
+library(MASS)
+
+# Separate data set
+
+df1 <- df
+df1 <- na.omit(df1)
+
+set.seed(1412)
+trainIndex <- createDataPartition(df1$Suicide, p = .80) %>% unlist()
+training <- df1[ trainIndex,]
+testing  <- df1[-trainIndex,]
+
+```
+
+
+```{r}
+
+model.boost=gbm(Suicide ~ . ,data = training, distribution = "gaussian",n.trees = 1350,
+                  shrinkage = 0.01, interaction.depth = 4)  
+model.boost
+
+
+#Summary gives a table of Variable Importance and a plot of Variable Importance 
+summary(model.boost) 
+
+
+```
+
+
+Let consider the top 11 variables of importance...
+
+```{r}
+
+df3 <- subset(df1, select = c('Suicide', 'Abuse', 'Age', 'Alcohol', 'MD.TOTAL', 'ADHD.Q1', 'ADHD.Q17','Subst.Dx','ADHD.Total', 'Cocaine', 'Education'))
+
+```
+
+
+
+```{r}
+
+set.seed(7790)
+trainIndex <- createDataPartition(df3$Suicide, p = .80) %>% unlist()
+training <- df3[ trainIndex,]
+testing  <- df3[-trainIndex,]
+
+```
+
+
+```{r}
+
+model.boost=gbm(Suicide ~ . ,data = training, distribution = "gaussian",n.trees = 1350,
+                  shrinkage = 0.01, interaction.depth = 4)  
+model.boost
+
+
+#Summary gives a table of Variable Importance and a plot of Variable Importance 
+summary(model.boost) 
+
+
+```
 
 
 
 
+**Plotting the Partial Dependence Plot:**
+The partial Dependence Plots will tell us the relationship and dependence of the variables 
+X with the Response variable Y
+
+```{r}
+
+#Plot of Response variable with ADHD.Total variable
+plot(model.boost,i="Abuse") 
+
+#Inverse relation with Age variable
+
+plot(model.boost,i="Age") 
 
 
-------------------------------------------------------------------------------------------------------------------------------------------------------
-### Question 4 Support Vector Machine
+```
+
+The above plot simply shows the relation between the variables in the x-axis and the mapping function 
+f(x) on the y-axis. First plot shows that Abuse is somewhat positively correlated with the response Suicide, whereas the second one shows that Age is not really directly related to Suicide.
+
+```{r}
+
+cor(training$Abuse, training$Suicide)
+
+cor(training$Age,training$Suicide)
+```
+
+**Prediction on Test Set**
+
+We will compute the Test Error as a function of number of Trees.
+
+```{r}
+n.trees = seq(from=100 ,to=5000, by=100) #no of trees-a vector of 100 values 
+
+#Generating a Prediction matrix for each Tree
+predmatrix<-predict(model.boost,training,n.trees = n.trees)
+dim(predmatrix) #dimentions of the Prediction Matrix
+
+#Calculating The Mean squared Test Error
+test.error<-with(training,apply( (predmatrix-Suicide)^2,2,mean))
+head(test.error) #contains the Mean squared test error for each of the 100 trees averaged
+
+#Plotting the test error vs number of trees
+
+plot(n.trees , test.error , pch=19,col="blue",xlab="Number of Trees",ylab="Test Error", main = "Perfomance of Boosting on Test Set")
+
+
+```
+
+
+Note that from the above plot we can notice that if boosting is done properly by selecting appropriate tuning parameters such as shrinkage parameter lambda,the number of splits we want and the number of trees n, then it can generalize really well and convert a weak learner to strong learner. It is really well and tend to outperform a single learner which is prone to either overfitting or underfitting or generate thousands or hundreds of them,then combine them to produce a better and stronger model.
+
+
+
+## Support Vector Machine
 
 SVM (Support Vector Machines) are a supervised learning method that can be used for classification and regression analysis. Typically, there are used more for classification. The basic idea of SVM is to create an optimal hyperplane to linearly seperate variables, using support vectors. Support vectors are the data points the are closest to the hyperplane. These are the points that are most difficult to classify.  The goal of SVM is to create the best hyperplane, or one that maximizes the distance/magrin between the support vectors. SVM does work with non-linear data using kernal functions. Kernal Functions maps the data points to a higher dimension. 
 
 For the purposes of this question, we want to use SVM to classify suicides. In order to use SVM, we're going to need to reduce the total dimensions in the data set. SVM works best with less dimensions, in order to perform dimension reduction, we're going to apply 2 approaches. One is to eliminate variables with higher than normal levels of correlation and secondly, implement PCA to create new variables that account for most of the data. 
 
 
-#### SVM with Dimension Reduction using Correlation 
+### SVM with Dimension Reduction using Correlation 
 
 We're going to create a new data set and convert Suicide into a factor.
 
@@ -500,7 +642,7 @@ test <- svmNumerical2[-initsplit,]
 
 
 ```{r}
-
+library(e1071)
 svmfit_s = svm(Suicide ~ ., data = training, kernel = "sigmoid", cost = 10, scale = TRUE)
 svmfit_r = svm(Suicide ~ ., data = training, kernel = "radial", cost = 10, scale = TRUE)
 svmfit_l =svm(Suicide ~ ., data = training, kernel = "linear", cost = 10, scale = TRUE)
@@ -526,12 +668,13 @@ svm3
 ```
 
 
-#### SVM - Dimension Reduction with PCA 
+### SVM - Dimension Reduction with PCA 
 
 Using the 'jus_nums' data set (all the variables are still numerical but with imputed values).
 
 ```{r}
-#jus_nums2 <- jus_nums %>% dplyr::select(-MD.TOTAL, -ADHD.Total)
+jus_nums2 <- jus_nums %>% dplyr::select(-MD.TOTAL, -ADHD.Total)
+
 jus_nums2$Suicide <- as.factor(jus_nums2$Suicide)
 
 ```
@@ -551,22 +694,25 @@ fviz_pca_biplot(PCA_svm, label="var",
 When can see the the 2 most important components of the account for 34.781 % of the data. We can utilize 34-35 components, those cover a little over 95% of the data, however, the fear is to overfit the model. It is necessary to reduce the number of PCA components so we can continue building our SVM model. The 'elbow method' can be used to reduce the overall number of compnents. 
 
 ```{r}
+
 fviz_eig(PCA_svm, addlabels = TRUE)
 ```
 
 Looking at the scree plot, the optimal number of PCA components is 3, the rate of decrease slows down after 3. Using the three principal components, the next step is to create a new data set with Suicide as the fifth column. After the new data set is created, we can split the data into training and testing sets. The new data set will have 4 total columns, a large reduction in dimensions from the original data set. 
 
 ```{r}
+
 #Select the 4 components and assign to a new variable 
 pca_3 <- PCA_svm$x[,1:3]
 
 #create new data set
 
-pca_new <- cbind(as.data.frame(pca_4), Suicide = jus_nums2$Suicide)
+pca_new <- cbind(as.data.frame(pca_3), Suicide = jus_nums2$Suicide)
 ```
 
 
 ```{r}
+
 set.seed(100)
 
 #Create Data Partition 
@@ -602,6 +748,7 @@ svm2
 Linear Kernal Results
 
 ```{r}
+
 svmPre3<-predict(svmfit3,test2)
 svm3<-confusionMatrix(svmPre3,test$Suicide)
 svm3
@@ -614,13 +761,13 @@ svm4<-confusionMatrix(svmPre4,test$Suicide)
 svm4
 ```
 
-#### Selecting a final model
+## Conclusion: Selecting a final model
 
 Interestingly, three of the six models results in the same level of accuracy with the testing data. The model using the sigmoid kernal with reduced variables due to correlation was the best out of that approach. On the other hand, the linear and radial kernal returned similar results using PCA to trim the overall variables. Now, it is important to look into the sensitivity and specifity of the top models. The specificity of 2 of the top models was 50% and 40% respectively, while the third model had a specificity of 0%. This is really important because of the topic and our end goals. The goal is to detect suicide in patients. 1 of the models can predict suicide at the rate of a coin toss and the second less than that, which is terrible. I would rather go with the third model that has no specificity. The model with a 100% sensitivity can at least RULE out non-suicidal people. In a real world enviroment, it's better to be wrong about who you think is suicidal then accidental classify someone as non-suicidal who actually is suicidal. Also, the PCA models contain a much reduced dimesionality, making them easier models. In a professional setting, the downside of such models would be explaining it to a non-technical audience. 
 
 
 
-Sources:
+*Sources:*
 
 - https://towardsdatascience.com/linear-discriminant-analysis-lda-101-using-r-6a97217a55a6
 - https://towardsdatascience.com/principal-component-analysis-pca-101-using-r-361f4c53a9ff
@@ -628,6 +775,7 @@ Sources:
 - https://www.datacamp.com/community/tutorials/hierarchical-clustering-R#what
 - Kmean clustring https://uc-r.github.io/kmeans_clustering
 - gradient boosting machine in R : https://www.storybench.org/tidytuesday-bike-rentals-part-2-modeling-with-gradient-boosting-machine/
+- https://datascienceplus.com/gradient-boosting-in-r/
 
 
 
