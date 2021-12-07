@@ -1,0 +1,316 @@
+---
+title: "Final Project"
+author: "Abdellah AitElmouden | Gabriel Abreu |  Jered Ataky"
+date: "12/1/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Research Objectives
+
+Nutritional factors play a key role in both innate and adaptive immunity. Further, we have learnt that individuals with comorbidities are disproportionally affected with severe COVID-19 disease and mortality. Obesity, type 2 diabetes, atherosclerotic cardiovascular disease, and hypertension are risk factors for severe COVID-19.5 6 The aetiology of these conditions is largely driven by poor nutrition and unfavourable lifestyle choices (eg, physical inactivity or sedentary behaviour) 
+
+The goal of this analysis is to find out how a country’s diet correlates with its COVID-19 mortality rate. With different food cultures across the world, it would be interesting to see what are the food categories that can best predict a country’s rate of deaths.
+
+## The Dataset
+
+Data for this project is taken from this very interesting [kaggle](https://www.kaggle.com/mariaren/covid19-healthy-diet-dataset) dataset. the dataset combined data of different types of food, world population obesity and undernourished rate, and global COVID-19 cases count from around the world in order to learn more about how a healthy eating style could help combat the Corona Virus.
+
+There are 5 files in the dataset:
+
+- Fat_Supply_Quantity_Data.csv: percentage of fat intake from different food groups for 170 different countries.
+- Food_Supply_Quantity_kg_Data.csv: percentage of food intake( in  kg  ) from different food groups for 170 different countries.
+- Food_Supply_kcal_Data.csv: percentage of energy intake (in  kcal ) from different food groups for 170 different countries.
+- Protein_Supply_Quantity_Data.csv: percentage of protein intake from different food groups for 170 different countries.
+All of these files have, also, columns including obesity, undernourishment and COVID-19 cases as percentages of total population.
+- Supply_Food_Data_Descriptions.csv: This dataset is obtained from FAO.org, and is used to show the specific types of food that belongs to each category for the above datasets.
+
+```{r setup, include=FALSE}
+# Import libraries
+library(GGally)
+library(ggplot2)
+library(caret)
+library(mice)
+library(tidyverse)
+library(DataExplorer)
+library(MASS)
+library(naniar)
+library(kableExtra)
+library(skimr)
+library(randomForest)
+```
+
+
+## Data Exploration
+
+```{r}
+fat_data <- read.csv("./data/Fat_Supply_Quantity_Data.csv")
+supply_kcal_data <- read.csv("./data/Food_Supply_kcal_Data.csv")
+supply_kg_data <- read.csv("./data/Food_Supply_Quantity_kg_Data.csv")
+protein_data <- read.csv("./data/Protein_Supply_Quantity_Data.csv")
+```
+
+In almost all dataset, the data are organized by countries. There are 170 countries in these datasets. 32 variables as following:
+
+```{r}
+names(supply_kcal_data)
+```
+```{r, echo=FALSE}
+#Select top 20 of certain predictors (those usually associated with healthy or unhealthy diets) 
+top_obese_countries <- supply_kcal_data %>% 
+                       dplyr::select(Country, Obesity) %>%
+                       arrange(desc(Obesity)) %>%
+                       head(20)
+
+
+top_deaths_countries <- supply_kcal_data %>% 
+                        dplyr::select(Country, Deaths) %>%
+                        arrange(desc(Deaths)) %>%
+                        head(20)
+
+top_veggies_countries <- supply_kcal_data %>% 
+                        dplyr::select(Country, Vegetables) %>%
+                        arrange(desc(Vegetables)) %>%
+                        head(20)
+
+top_meat_countries <- supply_kcal_data %>% 
+                        dplyr::select(Country, Meat) %>%
+                        arrange(desc(Meat)) %>%
+                        head(20)
+
+top_aniproducts_countries <- supply_kcal_data %>% 
+                        dplyr::select(Country, Animal.Products) %>%
+                        arrange(desc(Animal.Products)) %>%
+                        head(20)
+
+top_sugar_countries <- supply_kcal_data %>% 
+                        dplyr::select(Country, Sugar...Sweeteners) %>%
+                        arrange(desc(Sugar...Sweeteners)) %>%
+                        head(20)
+```
+
+
+```{r}
+ggplot(top_obese_countries, aes(x=Obesity, y=Country)) + geom_histogram(stat = "identity")
+```
+
+```{r}
+ggplot(top_deaths_countries, aes(x=Deaths, y=Country)) + geom_histogram(stat = "identity")
+```
+
+```{r}
+ggplot(top_veggies_countries, aes(x=Vegetables, y=Country)) + geom_histogram(stat = "identity")
+```
+
+```{r}
+ggplot(top_meat_countries, aes(x=Meat, y=Country)) + geom_histogram(stat = "identity")
+```
+```{r}
+ggplot(top_aniproducts_countries, aes(x=Animal.Products, y=Country)) + geom_histogram(stat = "identity")
+```
+
+```{r}
+ggplot(top_sugar_countries, aes(x=Sugar...Sweeteners, y=Country)) + geom_histogram(stat = "identity")
+```
+
+By checking the datasets we notice that the datasets are similar, and choose to focus on the easiest to understand: food_kcal. Caloric intake from specific food groups makes it easy to understand which food groups contribute the most to a country's diet and overall calorie count. Diets can be high caloric but traditional thinking dictates that diets rich in vegetables and fruits will be healthier than those that eat a large amount of meat and sugars. Also the Unit column only contains the % sign, indicating that all the column except the Population one are in percentages. It is important to know the unit used.
+
+### Check variable distribution
+
+```{r}
+plot_histogram(supply_kcal_data, ggtheme = theme_linedraw())
+```
+We can see that the majority of the predictors are skewed and all of the values for `Aquatic.Products..Other` equals 0, making it a prime candidate to eliminate from further analysis. This data set will benefit from a Box Cox transformation. 
+
+
+## Check missing Data
+
+```{r}
+plot_missing(supply_kcal_data,  missing_only = TRUE)
+```
+The plot helps us understanding that almost almost 4% of data are missing in the "Recovered", "Deaths", "Confirmed", ""Undernourished" and "Active" Variables. and almost 2% in the "Obesity".
+
+
+## Data Manipulation
+```{r, echo=FALSE}
+#make a copy of the original data set 
+raw_data <- supply_kcal_data
+```
+
+### Imputation
+
+```{r, echo=FALSE}
+#Giving the countries with an undernourished percentage of <2.5, a flat 2. This eliminates the less than character and doesn't rely on 
+#imputation to make up a new number. The imputed data would give a country a like the United States a percentage of 47.5, which can greatly
+#affect how it is clustered
+raw_data$Undernourished[raw_data$Undernourished == "<2.5"] <- "2"
+
+#Make the Undernourished column numeric
+raw_data$Undernourished <- as.numeric(raw_data$Undernourished)
+```
+
+```{r, echo=FALSE}
+#Use mice package to impute the missing data
+imputed_data <- mice(raw_data, m=2, maxit = 2, method='cart', seed = 500)
+complete_data <- complete(imputed_data, 2)
+```
+
+```{r}
+skim(complete_data)
+```
+
+```{r, echo=FALSE}
+complete_data2 <- complete_data %>% dplyr::select(c(-"Country",-"Unit..all.except.Population.", -"Confirmed",-"Recovered",-"Active"))
+```
+
+### Create Training/Test Set
+
+```{r}
+#Creating a non-normalized and scaled data set (only BoxCox transformation, eliminate near zero variance and highly correlated variables)
+Processed <- preProcess(complete_data2, method = c("BoxCox", "nzv","corr"))
+Processed
+```
+
+```{r}
+treeData <- predict(Processed, complete_data2)
+```
+
+```{r}
+set.seed(150)
+predictors <- subset(treeData, select = -Deaths)
+Deaths <- subset(treeData, select="Deaths")
+initsplit <- createDataPartition(Deaths$Deaths, p=0.8, list=FALSE)
+
+#Create Training Data to tune the model
+X.train <- predictors[initsplit,]
+Y.train <- Deaths[initsplit,]
+
+#Create testing data to evaluate the model
+X.test <- predictors[-initsplit,]
+Y.test <- Deaths[-initsplit,]
+```
+
+```{r}
+#Creating a normalized, scaled data set along with the other transformations
+Processed2 <- preProcess(complete_data2, method = c("center", "scale","BoxCox","nzv","corr"))
+Processed2
+```
+
+```{r}
+nrmData <- predict(Processed2, complete_data2)
+```
+
+```{r}
+set.seed(150)
+
+predictors2 <- subset(nrmData, select = -Deaths)
+Deaths2 <- subset(nrmData, select="Deaths")
+initsplit2 <- createDataPartition(Deaths2$Deaths, p=0.8, list=FALSE)
+
+#Create Training Data to tune the model
+X.train.cs <- predictors2[initsplit2,]
+Y.train.cs <- Deaths2[initsplit2,]
+
+#Create testing data to evaluate the model
+X.test.cs <- predictors2[-initsplit2,]
+Y.test.cs <- Deaths2[-initsplit2,]
+```
+## Models
+
+### Trees
+
+Decision trees do not need a normalized and scaled data set in order to build a model. Scaling the data can affect any nonlinear relationships in the data. Decision tree model are robust enough to not need normalization and can reflect any nonlinear relationships in the model that is created.  
+
+#### Random Forest
+
+
+```{r}
+randoModel <- randomForest(X.train, Y.train, importance = TRUE, ntree = 1000)
+```
+
+
+```{r}
+set.seed(150)
+randomPred <- predict(randoModel, newdata = X.test)
+randomResample <- postResample(pred=randomPred, obs = Y.test)
+```
+
+```{r}
+varImpPlot(randoModel, n.var=10)
+```
+
+#### Cubist
+
+```{r}
+set.seed(100)
+cubeModel <- train(X.train, Y.train,
+    method = "cubist",
+    verbose = FALSE)
+```
+
+```{r}
+plot(varImp(cubeModel), n=10)
+```
+
+```{r}
+cubistPred <-predict(cubeModel, newdata=X.test)
+cubistSample <- postResample(pred=cubistPred, obs = Y.test)
+```
+
+#### Gradient Boosted
+
+```{r}
+gbmGrid <- expand.grid(
+         interaction.depth = seq(1, 7, by = 2),
+         n.trees = seq(100, 1000, by = 50),
+         shrinkage = c(0.01, 0.1),
+         n.minobsinnode = 10
+         )
+
+set.seed(100)
+
+gbmModel <- train(X.train, Y.train,
+    method = "gbm",
+    tuneGrid = gbmGrid,
+    verbose = FALSE)
+```
+
+```{r}
+summary(gbmModel)
+```
+
+```{r}
+gbmPred <-predict(gbmModel, newdata=X.test)
+gbmResample <- postResample(pred=gbmPred, obs=Y.test)
+```
+
+
+Prediction Results:
+
+```{r}
+
+display <- rbind(
+  "Random Forest" = randomResample,
+  "Gradient Boosted Tree" = gbmResample,
+  "Cubist" = cubistSample)
+
+
+display %>% kable() %>% kable_paper()
+```
+
+
+### Non-Linear
+
+#### SVM
+
+
+#### KNN
+
+
+### Clustering(?)
+
+
+
