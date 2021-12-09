@@ -95,7 +95,7 @@ We can see that the majority of the predictors are skewed and all of the values 
 ---------------------------
 
 ```{r, echo=FALSE}
-#Select top 20 of certain predictors (those usually associated with healthy or unhealthy diets) 
+#Select top 20 countries of different predictors (those usually associated with healthy or unhealthy diets) 
 top_obese_countries <- supply_kcal_data %>% 
                        dplyr::select(Country, Obesity) %>%
                        arrange(desc(Obesity)) %>%
@@ -182,7 +182,7 @@ skim(complete_data)
 ```
 
 ```{r, echo=FALSE}
-complete_data2 <- complete_data %>% dplyr::select(c(-"Country",-"Unit..all.except.Population."))
+complete_data2 <- complete_data %>% dplyr::select(c(-"Country",-"Unit..all.except.Population.", -"Confirmed",-"Recovered",-"Active"))
 ```
 
 ### Create Training/Test Set
@@ -245,11 +245,13 @@ Decision trees do not need a normalized and scaled data set in order to build a 
 
 #### Random Forest
 
+Building the random forest model
 
 ```{r}
 randoModel <- randomForest(X.train, Y.train, importance = TRUE, ntree = 1000)
 ```
 
+Creating a prediction using the previously created model.
 
 ```{r}
 set.seed(150)
@@ -257,11 +259,15 @@ randomPred <- predict(randoModel, newdata = X.test)
 randomResample <- postResample(pred=randomPred, obs = Y.test)
 ```
 
+Below is a plot of the top ten important variables for the Random Forest model. The parameter "Eggs" is important for both node purity and mean standard error. The other important variables are `Oilcrops`, `Alcholic.Beverages`, `Vegetal.Products`, and `Animal.Products`. Both vegetable and animal products include raw, cooked, and processed products. The inclusion of vegetable and animal products is not surprising since that is a common and somewhat necessary staple of any human diet. What is most surprising is Eggs, since it is a common food item but also a known allergen. 
+
 ```{r}
 varImpPlot(randoModel, n.var=10)
 ```
 
 #### Cubist
+
+The Cubist model is a rule based algorithm that uses regression at the end of the tree to determine the outcome.
 
 ```{r}
 set.seed(100)
@@ -269,6 +275,8 @@ cubeModel <- train(X.train, Y.train,
     method = "cubist",
     verbose = FALSE)
 ```
+
+Plotting the most important features according to the cubist model, once again we see the inclusion of `Eggs` as the most important predictor. After `Obesity` and `Population`, the model determines `Alcoholic.Beverages` and `Milk...Excluding.Butter` as the other important food predictors.  
 
 ```{r}
 plot(varImp(cubeModel), n=10)
@@ -280,6 +288,8 @@ cubistSample <- postResample(pred=cubistPred, obs = Y.test)
 ```
 
 #### Gradient Boosted
+
+Gradient Boosted Machine builds multiple decision trees, one at a time, each new tree helps to correct errors made by the previous tree. In theory, the gradient boosted model should produce a more accurate model than the random forest. 
 
 ```{r}
 gbmGrid <- expand.grid(
@@ -296,6 +306,8 @@ gbmModel <- train(X.train, Y.train,
     tuneGrid = gbmGrid,
     verbose = FALSE)
 ```
+
+View the most important predictors determined by the gradient boosted model. Much like the other tree based models, we see the importance of `Eggs`,`Alcoholic.Beverages`, and `Oilcrops`. 
 
 ```{r}
 summary(gbmModel)
@@ -319,7 +331,8 @@ display <- rbind(
 
 display %>% kable() %>% kable_paper()
 ```
-
+The best model using Rsquare and RMSE as the primary selection criteria, random forest produces the optimal model. The Gradient Boosted tree performed only marginally worse, but Rsquare parameter still fell below the .50
+threshold. However, when it boils down to determining the most influential food predictor in deaths relating to COVID-19, it appears to be `Eggs`, according to the models. 
 
 ### Non-Linear
 
