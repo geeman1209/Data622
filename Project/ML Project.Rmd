@@ -2,34 +2,13 @@
 title: "Final Project"
 author: "Abdellah AitElmouden | Gabriel Abreu |  Jered Ataky"
 date: "12/1/2021"
-output: html_document
+output:
+  html_document: default
+  pdf_document: default
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
-
-## Research Objectives
-
-Nutritional factors play a key role in both innate and adaptive immunity. Further, we have learnt that individuals with comorbidities are disproportionally affected with severe COVID-19 disease and mortality. Obesity, type 2 diabetes, atherosclerotic cardiovascular disease, and hypertension are risk factors for severe COVID-19.5 6 The aetiology of these conditions is largely driven by poor nutrition and unfavourable lifestyle choices (eg, physical inactivity or sedentary behaviour) 
-
-The goal of this analysis is to find out how a country’s diet correlates with its COVID-19 mortality rate. With different food cultures across the world, it would be interesting to see what are the food categories that can best predict a country’s rate of deaths.
-
-## The Dataset
-
-Data for this project is taken from this very interesting [kaggle](https://www.kaggle.com/mariaren/covid19-healthy-diet-dataset) dataset. the dataset combined data of different types of food, world population obesity and undernourished rate, and global COVID-19 cases count from around the world in order to learn more about how a healthy eating style could help combat the Corona Virus.
-
-There are 5 files in the dataset:
-
-- Fat_Supply_Quantity_Data.csv: percentage of fat intake from different food groups for 170 different countries.
-- Food_Supply_Quantity_kg_Data.csv: percentage of food intake( in  kg  ) from different food groups for 170 different countries.
-- Food_Supply_kcal_Data.csv: percentage of energy intake (in  kcal ) from different food groups for 170 different countries.
-- Protein_Supply_Quantity_Data.csv: percentage of protein intake from different food groups for 170 different countries.
-All of these files have, also, columns including obesity, undernourishment and COVID-19 cases as percentages of total population.
-- Supply_Food_Data_Descriptions.csv: This dataset is obtained from FAO.org, and is used to show the specific types of food that belongs to each category for the above datasets.
 
 ```{r setup, include=FALSE}
-# Import libraries
 library(GGally)
 library(ggplot2)
 library(caret)
@@ -44,20 +23,77 @@ library(randomForest)
 ```
 
 
-## Data Exploration
+## Introduction
 
-```{r}
+Nutritional factors play a key role in both innate and adaptive immunity. Further, we have learnt that individuals with comorbidities are disproportionally affected with severe COVID-19 disease and mortality. Obesity, type 2 diabetes, atherosclerotic cardiovascular disease, and hypertension are risk factors for severe COVID-19.5 6 The aetiology of these conditions is largely driven by poor nutrition and unfavourable lifestyle choices (eg, physical inactivity or sedentary behaviour) 
+
+The goal of this analysis is to find out how a country’s diet correlates with its COVID-19 mortality rate. With different food cultures across the world, it would be interesting to see what are the food categories that can best predict a country’s rate of deaths.
+
+## The Dataset
+
+Data for this project was taken from this very interesting [kaggle](https://www.kaggle.com/mariaren/covid19-healthy-diet-dataset) dataset. the dataset combined data of different types of food, world population obesity and undernourished rate, and global COVID-19 cases count from around the world in order to learn more about how a healthy eating style could help combat the Corona Virus.
+
+There are 5 files in the dataset:
+
+- Fat_Supply_Quantity_Data.csv: percentage of fat intake from different food groups for 170 different countries.
+- Food_Supply_Quantity_kg_Data.csv: percentage of food intake( in  kg  ) from different food groups for 170 different countries.
+- Food_Supply_kcal_Data.csv: percentage of energy intake (in  kcal ) from different food groups for 170 different countries.
+- Protein_Supply_Quantity_Data.csv: percentage of protein intake from different food groups for 170 different countries.
+All of these files have, also, columns including obesity, undernourishment and COVID-19 cases as percentages of total population.
+- Supply_Food_Data_Descriptions.csv: This dataset is obtained from FAO.org, and is used to show the specific types of food that belongs to each category for the above datasets.
+
+In each of the 4 datasets above, they have calculated fat quantity, energy intake (kcal), food supply quantity (kg), and protein for different categories of food (all calculated as percentage of total intake amount). they've also added on the obesity and undernourished rate (also in percentage) for comparison. The end of the datasets also included the most up to date confirmed/deaths/recovered/active cases (also in percentage of current population for each country).
+
+**Data Collection**
+
+- Data for different food group supply quantities, nutrition values, obesity, and undernourished percentages were obtained from Food and Agriculture Organization of the United Nations [FAO website](http://www.fao.org/faostat/en/#home) To see the specific types of food included in each category from the FAO data.
+- Data for population count for each country comes from Population Reference Bureau [PRB website](https://www.prb.org/).
+- Data for COVID-19 confirmed, deaths, recovered and active cases are obtained from Johns Hopkins Center for Systems Science and Engineering [CSSE website](https://coronavirus.jhu.edu/map.html).
+- The USDA Center for Nutrition Policy and Promotion diet intake guideline information can be found in [ChooseMyPlate.gov](https://www.choosemyplate.gov/).
+
+
+## Methodology
+
+Before applying machine learning models, We started first with the process to understand the data which is called Exploratory Data Anaysis(EDA). It refers to the process of initial investigation and analysis of the dataset in order to understand the distribution, anomality, correlation and other data characteristics .
+
+In this project we especially focus on using tree-based algorithms such as random forest, gradient boosting and Cubist. Decision tree analysis it is a general, predictive modelling tool, and It is one of the most widely used and practical methods for supervised learning. our goal is to create a model that predicts the value of a target variable by learning simple decision rules inferred from the data features. After that we'll proceed with a Random forests analysis, it is commonly reported as the most accurate learning algorithm. and also because it reduces the variance seen in decision trees. Also to check for more comprehensive predictive accuracy we used a cubist algorithm and compare all three models results to demonstrate which one has the highest prediction
+performance
+
+## Data Exploration and Processing
+
+#### The whole data overview
+
+```{r setup, include=FALSE}
 fat_data <- read.csv("./data/Fat_Supply_Quantity_Data.csv")
 supply_kcal_data <- read.csv("./data/Food_Supply_kcal_Data.csv")
 supply_kg_data <- read.csv("./data/Food_Supply_Quantity_kg_Data.csv")
 protein_data <- read.csv("./data/Protein_Supply_Quantity_Data.csv")
 ```
 
-In almost all dataset, the data are organized by countries. There are 170 countries in these datasets. 32 variables as following:
+After importing the files we have noticed that the datasets are similar, and we choose to focus on the easiest to understand: food_kcal. Caloric intake from specific food groups makes it easy to understand which food groups contribute the most to a country's diet and overall calorie count. Diets can be high caloric but traditional thinking dictates that diets rich in vegetables and fruits will be healthier than those that eat a large amount of meat and sugars. Also the Unit column only contains the % sign, indicating that all the column except the Population one are in percentages. It is important to know the unit used.
+
+the data are organized by countries. There are 170 countries in these datasets. 32 variables as following:
 
 ```{r}
 names(supply_kcal_data)
 ```
+### Check for missing Data
+
+Missing data in substantive research is common and can be problematic for structural equation modelling if not handled correctly. A well recognised statistical benchmark suggests datasets with missingness less than 5% is not a problem. Within this dataset we checked if our data variable had less than 5% missing data and therefore not be considered a problem to conduct further statistical tests. quick screening the data we can see that certain columns have some null values. The plot below generated using the R plot_missing function helps us understand that almost 4% of data are missing in the "Recovered", "Deaths", "Confirmed", ""Undernourished" and "Active" Variables. and almost 2% in the "Obesity", so it is less than 5%.
+
+```{r}
+plot_missing(supply_kcal_data,  missing_only = TRUE)
+```
+### Numerical Variables Distribution 
+
+```{r}
+plot_histogram(supply_kcal_data, ggtheme = theme_linedraw())
+```
+We can see that the majority of the predictors are skewed and all of the values for `Aquatic.Products..Other` equals 0, making it a prime candidate to eliminate from further analysis. This data set will benefit from a Box Cox transformation. 
+
+
+---------------------------
+
 ```{r, echo=FALSE}
 #Select top 20 of certain predictors (those usually associated with healthy or unhealthy diets) 
 top_obese_countries <- supply_kcal_data %>% 
@@ -115,23 +151,6 @@ ggplot(top_aniproducts_countries, aes(x=Animal.Products, y=Country)) + geom_hist
 ```{r}
 ggplot(top_sugar_countries, aes(x=Sugar...Sweeteners, y=Country)) + geom_histogram(stat = "identity")
 ```
-
-By checking the datasets we notice that the datasets are similar, and choose to focus on the easiest to understand: food_kcal. Caloric intake from specific food groups makes it easy to understand which food groups contribute the most to a country's diet and overall calorie count. Diets can be high caloric but traditional thinking dictates that diets rich in vegetables and fruits will be healthier than those that eat a large amount of meat and sugars. Also the Unit column only contains the % sign, indicating that all the column except the Population one are in percentages. It is important to know the unit used.
-
-### Check variable distribution
-
-```{r}
-plot_histogram(supply_kcal_data, ggtheme = theme_linedraw())
-```
-We can see that the majority of the predictors are skewed and all of the values for `Aquatic.Products..Other` equals 0, making it a prime candidate to eliminate from further analysis. This data set will benefit from a Box Cox transformation. 
-
-
-## Check missing Data
-
-```{r}
-plot_missing(supply_kcal_data,  missing_only = TRUE)
-```
-The plot helps us understanding that almost almost 4% of data are missing in the "Recovered", "Deaths", "Confirmed", ""Undernourished" and "Active" Variables. and almost 2% in the "Obesity".
 
 
 ## Data Manipulation
@@ -222,7 +241,7 @@ Y.test.cs <- Deaths2[-initsplit2,]
 
 ### Trees
 
-Decision trees do not need a normalized and scaled data set in order to build a model. Scaling the data can affect any nonlinear relationships in the data. Decision tree model are robust enough to not need normalization and can reflect any nonlinear relationships in the model that is created.  
+Decision trees do not need a normalized and scaled data set in order to build a model. Scaling the data can affect any nonlinear relationships in the data. Decision tree model are robust enough to not need normalization and can reflect any nonlinear relationships in the model that is created.
 
 #### Random Forest
 
