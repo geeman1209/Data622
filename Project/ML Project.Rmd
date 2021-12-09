@@ -144,9 +144,10 @@ descdist(complete_data2$Recovered, boot=1000)
 ```
 ```{r}
 
-fw <- fitdist(complete_data2$Recovered, distr = "weibull")
-fg <- fitdist(complete_data2$Recovered, distr = "gamma")
-fe <- fitdist(complete_data2$Recovered, distr = "exp")
+# I added the > 0 because the gamma dist doesn't allow zero values 
+fw <- fitdist(complete_data2$Recovered[complete_data2$Recovered > 0], distr = "weibull", lower = 0.0)
+fg <- fitdist(complete_data2$Recovered[complete_data2$Recovered > 0], distr = "gamma", lower = 0.0)
+fe <- fitdist(complete_data2$Recovered[complete_data2$Recovered > 0], distr = "exp", lower = 0.0)
 par(mfrow = c(2, 2))
 plot.legend <- c("Weibull", "gamma", "expo")
 denscomp(list(fw, fg, fe), legendtext = plot.legend)
@@ -155,38 +156,50 @@ cdfcomp(list(fw, fg, fe), legendtext = plot.legend)
 ppcomp(list(fw, fg, fe), legendtext = plot.legend)
 ```
 
+From the plotted fitting metrics above, it appears that Weibull and gamma are the best contenders, but it seems a little unclear who is the clear winner form the density plot. Let’s take a closer look with a larger density plot for these two distributions.
 
----------------------------
+```{r}
+denscomp(list(fw, fg), legendtext = c("Weibull", "gamma"))
+```
+It seems that still both distribution fits this data the best. Let us confirm this against the Akaline’s and Bayesian Information Criterion (AIC and BIC), which will give a sort of rank to the goodness of fit models passed to it using the gofstat function as well as the Goodness-of-fit statistics, which give distances between the fits and the empirical data.
+
+```{r}
+gofstat(list(fw, fg))
+```
+Since the gamma distribution has the min AIC, BIC, and minimum goodness-of-fit statistics, we will choose the gamma distribution.
+
+
+
 
 ```{r, echo=FALSE}
 #Select top 20 countries of different predictors (those usually associated with healthy or unhealthy diets) 
-top_obese_countries <- supply_kcal_data %>% 
+top_obese_countries <- complete_data2 %>% 
                        dplyr::select(Country, Obesity) %>%
                        arrange(desc(Obesity)) %>%
                        head(20)
 
 
-top_deaths_countries <- supply_kcal_data %>% 
+top_deaths_countries <- complete_data2 %>% 
                         dplyr::select(Country, Deaths) %>%
                         arrange(desc(Deaths)) %>%
                         head(20)
 
-top_veggies_countries <- supply_kcal_data %>% 
+top_veggies_countries <- complete_data2 %>% 
                         dplyr::select(Country, Vegetables) %>%
                         arrange(desc(Vegetables)) %>%
                         head(20)
 
-top_meat_countries <- supply_kcal_data %>% 
+top_meat_countries <- complete_data2 %>% 
                         dplyr::select(Country, Meat) %>%
                         arrange(desc(Meat)) %>%
                         head(20)
 
-top_aniproducts_countries <- supply_kcal_data %>% 
+top_aniproducts_countries <- complete_data2 %>% 
                         dplyr::select(Country, Animal.Products) %>%
                         arrange(desc(Animal.Products)) %>%
                         head(20)
 
-top_sugar_countries <- supply_kcal_data %>% 
+top_sugar_countries <- complete_data2 %>% 
                         dplyr::select(Country, Sugar...Sweeteners) %>%
                         arrange(desc(Sugar...Sweeteners)) %>%
                         head(20)
@@ -194,26 +207,33 @@ top_sugar_countries <- supply_kcal_data %>%
 
 
 ```{r}
+par(mfrow=c(2,2))
 ggplot(top_obese_countries, aes(x=Obesity, y=Country)) + geom_histogram(stat = "identity")
-```
-
-```{r}
 ggplot(top_deaths_countries, aes(x=Deaths, y=Country)) + geom_histogram(stat = "identity")
-```
-
-```{r}
 ggplot(top_veggies_countries, aes(x=Vegetables, y=Country)) + geom_histogram(stat = "identity")
+
 ```
 
 ```{r}
-ggplot(top_meat_countries, aes(x=Meat, y=Country)) + geom_histogram(stat = "identity")
-```
-```{r}
+par(mfrow=c(2,2))
 ggplot(top_aniproducts_countries, aes(x=Animal.Products, y=Country)) + geom_histogram(stat = "identity")
+ggplot(top_meat_countries, aes(x=Meat, y=Country)) + geom_histogram(stat = "identity")
+ggplot(top_sugar_countries, aes(x=Sugar...Sweeteners, y=Country)) + geom_histogram(stat = "identity")
 ```
 
 ```{r}
-ggplot(top_sugar_countries, aes(x=Sugar...Sweeteners, y=Country)) + geom_histogram(stat = "identity")
+
+```
+
+```{r}
+
+```
+```{r}
+
+```
+
+```{r}
+
 ```
 
 
