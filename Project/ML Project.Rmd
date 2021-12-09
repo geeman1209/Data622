@@ -8,7 +8,7 @@ output:
 ---
 
 
-```{r setup, include=FALSE}
+```{r}
 library(GGally)
 library(ggplot2)
 library(caret)
@@ -79,17 +79,81 @@ names(supply_kcal_data)
 ```
 ### Check for missing Data
 
-Missing data in substantive research is common and can be problematic for structural equation modelling if not handled correctly. A well recognised statistical benchmark suggests datasets with missingness less than 5% is not a problem. Within this dataset we checked if our data variable had less than 5% missing data and therefore not be considered a problem to conduct further statistical tests. quick screening the data we can see that certain columns have some null values. The plot below generated using the R plot_missing function helps us understand that almost 4% of data are missing in the "Recovered", "Deaths", "Confirmed", ""Undernourished" and "Active" Variables. and almost 2% in the "Obesity", so it is less than 5%.
+Missing data in substantive research is common and can be problematic for structural equation modelling if not handled correctly. A well recognised statistical benchmark suggests datasets with missingness less than 5% is not a problem. Within this dataset we checked if our data variable had less than 5% missing data and therefore not be considered a problem to conduct further statistical tests. quick screening the data we can see that certain columns have some null values. The plot below generated using the R plot_missing function helps us understand that almost 4% of data are missing in the "Recovered", "Deaths", "Confirmed", ""Undernourished" and "Active" Variables. and almost 2% in the "Obesity", So still can imput the missing values using predictive mean matching method, that is a widely used statistical imputation method for missing values, so can get a better predictive accuracy.
 
 ```{r}
 plot_missing(supply_kcal_data,  missing_only = TRUE)
 ```
-### Numerical Variables Distribution 
+**Imputation**
+
+```{r, echo=FALSE}
+#Giving the countries with an undernourished percentage of <2.5, a flat 2. This eliminates the less than character and doesn't rely on 
+#imputation to make up a new number. The imputed data would give a country a like the United States a percentage of 47.5, which can greatly
+#affect how it is clustered
+raw_data$Undernourished[raw_data$Undernourished == "<2.5"] <- "2"
+
+#Make the Undernourished column numeric
+raw_data$Undernourished <- as.numeric(raw_data$Undernourished)
+```
+
+```{r, echo=FALSE}
+#Use mice package to impute the missing data
+imputed_data <- mice(raw_data, m=2, maxit = 2, method='cart', seed = 500)
+complete_data <- complete(imputed_data, 2)
+```
+
+```{r, echo=FALSE}
+complete_data2 <- complete_data %>% dplyr::select(c(-"Country",-"Unit..all.except.Population.", -"Confirmed",-"Recovered",-"Active"))
+```
+
+
+### Statistical Analyses
+
+**Numerical Variables Distribution**
+
+The statistical analysis included a prior investigation on the distribution of the independent and dependent variable (recovery from COVID-19), testing different types of probability distribution. 
+
+First we will quickly display a broad overview of a data frame, using the skim function
 
 ```{r}
-plot_histogram(supply_kcal_data, ggtheme = theme_linedraw())
+skim(complete_data2)
 ```
-We can see that the majority of the predictors are skewed and all of the values for `Aquatic.Products..Other` equals 0, making it a prime candidate to eliminate from further analysis. This data set will benefit from a Box Cox transformation. 
+
+from the histogram plot below we can see that the majority of the predictors are skewed and all of the values for `Aquatic.Products..Other` equals 0, making it a prime candidate to eliminate from further analysis. This data set will benefit from a Box Cox transformation. 
+
+
+```{r}
+plot_histogram(complete_data2, ggtheme = theme_linedraw())
+```
+
+Some other graphical methods, maybe more helpful than the simple histogram. we used the fitdisrplus package in R to visualize the recovery variable data together with some possible theoretical distributions in a skewness-kurtosis space:
+
+```{r}
+plotdist(complete_data2$Recovered, histo = TRUE, demp = TRUE)
+```
+From the empirical density above, our distribution is right skewed and appears to be an exponential type of distribution. The Cullen and Frey Graph below is a good way to exempt some distributions by the parameters of skewness and kurtosis using the descdist function; The orange values around the blue (data) point are based on bootstrapping. From this Cullen and Frey Graph and the empirical graphs above, our choices for good fits would seem to be limited to the available distributions in the fitdistrplus package:
+
+- Weibull
+- gamma
+- exponential
+
+
+```{r}
+library(fitdistrplus)
+descdist(complete_data2$Recovered, boot=1000) 
+```
+```{r}
+
+fw <- fitdist(complete_data2$Recovered, distr = "weibull")
+fg <- fitdist(complete_data2$Recovered, distr = "gamma")
+fe <- fitdist(complete_data2$Recovered, distr = "exp")
+par(mfrow = c(2, 2))
+plot.legend <- c("Weibull", "gamma", "expo")
+denscomp(list(fw, fg, fe), legendtext = plot.legend)
+qqcomp(list(fw, fg, fe), legendtext = plot.legend)
+cdfcomp(list(fw, fg, fe), legendtext = plot.legend)
+ppcomp(list(fw, fg, fe), legendtext = plot.legend)
+```
 
 
 ---------------------------
@@ -159,31 +223,6 @@ ggplot(top_sugar_countries, aes(x=Sugar...Sweeteners, y=Country)) + geom_histogr
 raw_data <- supply_kcal_data
 ```
 
-### Imputation
-
-```{r, echo=FALSE}
-#Giving the countries with an undernourished percentage of <2.5, a flat 2. This eliminates the less than character and doesn't rely on 
-#imputation to make up a new number. The imputed data would give a country a like the United States a percentage of 47.5, which can greatly
-#affect how it is clustered
-raw_data$Undernourished[raw_data$Undernourished == "<2.5"] <- "2"
-
-#Make the Undernourished column numeric
-raw_data$Undernourished <- as.numeric(raw_data$Undernourished)
-```
-
-```{r, echo=FALSE}
-#Use mice package to impute the missing data
-imputed_data <- mice(raw_data, m=2, maxit = 2, method='cart', seed = 500)
-complete_data <- complete(imputed_data, 2)
-```
-
-```{r}
-skim(complete_data)
-```
-
-```{r, echo=FALSE}
-complete_data2 <- complete_data %>% dplyr::select(c(-"Country",-"Unit..all.except.Population.", -"Confirmed",-"Recovered",-"Active"))
-```
 
 ### Create Training/Test Set
 
