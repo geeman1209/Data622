@@ -22,6 +22,7 @@ library(skimr)
 library(randomForest)
 library(fitdistrplus)
 library(corrplot)
+library(recipes)
 ```
 
 
@@ -444,6 +445,66 @@ lmodel <- lm(complete_data2$Deaths ~ ., data = ols.data)
 ```{r}
 summary(lmodel)
 ```
+### K-mean
+
+```{r}
+complete_data2 %>% recipe(~.) %>% 
+  #step_mutate_at(-Age, fn = ~ as.factor(.)) %>% 
+  step_dummy(all_nominal(), one_hot = T) %>% 
+  step_normalize(all_predictors()) %>%
+  step_nzv(all_predictors()) %>% 
+  step_corr(all_predictors()) %>% 
+  prep() #%>% 
+```
+
+The classification of observations into groups requires some methods for computing the distance or the (dis)similarity between each pair of observations. 
+The choice of distance measures is a critical step in clustering. It defines how the similarity of two elements (x, y) is calculated and it will influence the shape of the clusters. The choice also has has a strong influence on the clustering results.
+
+the default distance measure is the Euclidean distance. However, depending on the type of the data and the research questions, other dissimilarity measures might be preferred and you should be aware of the options.
+
+Within R it is simple to compute and visualize the distance matrix using the functions get_dist and fviz_dist from the factoextra R package.
+
+```{r}
+distance <- get_dist(complete_data2, method = "spearman")
+#head(as.matrix(distance), 2)[, 1:6]
+fviz_dist(distance, gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07"))
+```
+```{r}
+df <- complete_data2
+
+k2 <- kmeans(df, centers = 2, nstart = 25)
+k3 <- kmeans(df, centers = 3, nstart = 25)
+k4 <- kmeans(df, centers = 4, nstart = 25)
+k5 <- kmeans(df, centers = 5, nstart = 25)
+k6 <- kmeans(df, centers = 6, nstart = 25)
+k7 <- kmeans(df, centers = 7, nstart = 25)
+k8 <- kmeans(df, centers = 8, nstart = 25)
+k9 <- kmeans(df, centers = 9, nstart = 25)
+
+str(k2)
+```
+```{r}
+p1 <- fviz_cluster(k2, geom = "point", data = df) + ggtitle("k = 2")
+p2 <- fviz_cluster(k3, geom = "point",  data = df) + ggtitle("k = 3")
+p3 <- fviz_cluster(k4, geom = "point",  data = df) + ggtitle("k = 4")
+p4 <- fviz_cluster(k5, geom = "point",  data = df) + ggtitle("k = 5")
+p5 <- fviz_cluster(k6, geom = "point",  data = df) + ggtitle("k = 6")
+p6 <- fviz_cluster(k7, geom = "point",  data = df) + ggtitle("k = 6")
+p7 <- fviz_cluster(k8, geom = "point",  data = df) + ggtitle("k = 6")
+p8 <- fviz_cluster(k9, geom = "point",  data = df) + ggtitle("k = 6")
+
+library(gridExtra)
+grid.arrange(p1, p2, p3, p4,p5,p6,p7,p8, nrow = 4)
+```
+
+In order to determin the optimal clusters, we can use one of the following method which includes:
+
+- Elbow method
+- Silhouette method
+- Gap statisti
+
+
+But here we see overlapping between cluster which we can't explain
 
 
 ### Trees
