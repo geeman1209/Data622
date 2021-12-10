@@ -605,13 +605,121 @@ threshold. However, when it boils down to determining the most influential food 
 
 ### Non-Linear
 
-#### SVM
+Due to the nonlinear nature of the target variable and the predictors, it is important to explore other nonlinear models such as support vector machine. SVM is typically used for classification but it can be used for regression. The algorithm finds a function that creates a hyperplane that separates the space between the target classes. In regards to regression, the principal is similar, finding a good fitting hyperplane. 
+
+Since our target variable `Deaths` is numerical, we will have to perform support vector regression. 
+
+#### Support Vector Regression
+
+Use the svm function with a radial kernal to build a model. We're going to use the normalized training and testing set. 
+
+```{r}
+svr_model <- svm(X.train.cs,
+                   Y.train.cs,
+                   kernal = "Radial",
+                   cost=10)
+  
+```
 
 
-#### KNN
+```{r}
+print(svr_model)
+```
+
+```{r, echo=FALSE}
+pred = predict(svr_model, X.test.cs)
+
+x = 1:length(Y.test.cs)
+```
+
+Plot of Actual Points vs Line of Predicted Points
+
+```{r}
+plot(x, Y.test.cs, pch=18, col="red")
+lines(x, pred, lwd="1", col="blue")
+```
+
+```{r}
+### Check Support Vector Regression Accuracy 
+library(MLmetrics)
+mse = MSE(Y.test.cs, pred)
+mae = MAE(Y.test.cs, pred)
+rmse = RMSE(Y.test.cs, pred)
+
+r2 = R2(Y.test.cs, pred, form = "traditional")
+
+cat(" MAE:", mae, "\n", "MSE", mse, "\n",
+     "RMSE:", rmse, "\n", "R-Squared:", r2)
+```
+
+The basic support vector regression model produces an R-Square of 0.4499807 and an RMSE of 0.5300456. The plot shows that the model produces a poor fit. We can tune the model with different values of epsilon and cost to create a better model. 
+
+Tune SVM:
+
+The tune function identifies the best parameters by performing a grid search.
+
+```{r}
+tuneResult <- tune(svm, Deaths~., data=nrmData, ranges = list(epsilon=seq(0,1,0.1), cost = 2^(seq(0.5,8,.5))))
+```
+
+Here is the plot of the tuned model. The darker shades of the plot show the optimal parameters.
+
+```{r}
+plot(tuneResult)
+print(tuneResult)
+```
 
 
-### Clustering(?)
+```{r}
+tunedVals <- tuneResult$best.model
+predict2 <- predict(tunedVals, X.test.cs)
+```
+
+The updated plot of the tuned model. It shows a better fit than the non-tuned model.
+
+```{r}
+x1 = 1:length(Y.test.cs)
+
+plot(x1, Y.test.cs, pch=18, col="red")
+lines(x1, predict2, lwd="1", col="blue")
+
+```
+
+Checking the accuracy of the tuned model:
+
+```{r}
+mse = MSE(Y.test.cs, predict2)
+mae = MAE(Y.test.cs, predict2)
+rmse = RMSE(Y.test.cs, predict2)
+
+r2 = R2(Y.test.cs, predict2, form = "traditional")
+
+cat(" MAE:", mae, "\n", "MSE", mse, "\n",
+     "RMSE:", rmse, "\n", "R-Squared:", r2)
+
+```
+
+The tuned model's RSquare is much higher at 0.7057181 and a better RMSE score oef 0.3462124. We can manually check the tuned model's most important features:
+
+```{r}
+
+w <- t(tunedVals$coefs) %*% tunedVals$SV
+
+w <- apply(w, 2, function(v){sqrt(sum(v^2))})
+
+w <- sort(w, decreasing = T)
+
+print(w)
+```
+
+The tuned SVR model places a high level of importance on `Alcoholic.Beverages`, `Animal.fats`, `Obesity`, `Stimulants`, and `Oilcrops` when predicting deaths related to COVID-19. This makes logical sense since these factors are known (when consumed in large amounts) to be associated with overall poor health.  
 
 
+
+
+Sources:
+
+https://www.jmlr.org/papers/volume3/guyon03a/guyon03a.pdf
+https://alex.smola.org/papers/2004/SmoSch04.pdf
+https://stackoverflow.com/questions/34781495/how-to-find-important-factors-in-support-vector-machine
 
