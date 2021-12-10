@@ -20,12 +20,9 @@ library(naniar)
 library(kableExtra)
 library(skimr)
 library(randomForest)
-<<<<<<< Updated upstream
 library(fitdistrplus)
 library(corrplot)
-=======
-library(e1071)
->>>>>>> Stashed changes
+library(recipes)
 ```
 
 
@@ -62,7 +59,8 @@ In each of the 4 datasets above, they have calculated fat quantity, energy intak
 
 Before applying machine learning models, We started first with the process to understand the data which is called Exploratory Data Anaysis(EDA). It refers to the process of initial investigation and analysis of the dataset in order to understand the distribution, anomality, correlation and other data characteristics .
 
-In this project we especially focus on using tree-based algorithms such as random forest, gradient boosting and Cubist. Decision tree analysis it is a general, predictive modelling tool, and It is one of the most widely used and practical methods for supervised learning. our goal is to create a model that predicts the value of a target variable by learning simple decision rules inferred from the data features. After that we'll proceed with a Random forests analysis, it is commonly reported as the most accurate learning algorithm. and also because it reduces the variance seen in decision trees. Also to check for more comprehensive predictive accuracy we used a cubist algorithm and compare all three models results to demonstrate which one has the highest prediction performance.
+In this project we especially focus on using tree-based algorithms such as random forest, gradient boosting and Cubist. Decision tree analysis it is a general, predictive modelling tool, and It is one of the most widely used and practical methods for supervised learning. our goal is to create a model that predicts the value of a target variable by learning simple decision rules inferred from the data features. After that we'll proceed with a Random forests analysis, it is commonly reported as the most accurate learning algorithm. and also because it reduces the variance seen in decision trees. Also to check for more comprehensive predictive accuracy we used a cubist algorithm and compare all three models results to demonstrate which one has the highest prediction
+performance
 
 ## Data Exploration and Processing
 
@@ -90,14 +88,8 @@ Missing data in substantive research is common and can be problematic for struct
 plot_missing(supply_kcal_data,  missing_only = TRUE)
 ```
 **Imputation**
-```{r, echo=FALSE}
-#make a copy of the original data set 
-raw_data <- supply_kcal_data
-```
-
 
 ```{r, echo=FALSE}
-
 #Giving the countries with an undernourished percentage of <2.5, a flat 2. This eliminates the less than character and doesn't rely on 
 #imputation to make up a new number. The imputed data would give a country a like the United States a percentage of 47.5, which can greatly
 #affect how it is clustered
@@ -250,6 +242,10 @@ ggplot(top_sugar_countries, aes(x=Sugar...Sweeteners, y=Country)) + geom_histogr
 
 
 ## Data Manipulation
+```{r, echo=FALSE}
+#make a copy of the original data set 
+raw_data <- supply_kcal_data
+```
 
 
 ### Create Training/Test Set
@@ -449,6 +445,66 @@ lmodel <- lm(complete_data2$Deaths ~ ., data = ols.data)
 ```{r}
 summary(lmodel)
 ```
+### K-mean
+
+```{r}
+complete_data2 %>% recipe(~.) %>% 
+  #step_mutate_at(-Age, fn = ~ as.factor(.)) %>% 
+  step_dummy(all_nominal(), one_hot = T) %>% 
+  step_normalize(all_predictors()) %>%
+  step_nzv(all_predictors()) %>% 
+  step_corr(all_predictors()) %>% 
+  prep() #%>% 
+```
+
+The classification of observations into groups requires some methods for computing the distance or the (dis)similarity between each pair of observations. 
+The choice of distance measures is a critical step in clustering. It defines how the similarity of two elements (x, y) is calculated and it will influence the shape of the clusters. The choice also has has a strong influence on the clustering results.
+
+the default distance measure is the Euclidean distance. However, depending on the type of the data and the research questions, other dissimilarity measures might be preferred and you should be aware of the options.
+
+Within R it is simple to compute and visualize the distance matrix using the functions get_dist and fviz_dist from the factoextra R package.
+
+```{r}
+distance <- get_dist(complete_data2, method = "spearman")
+#head(as.matrix(distance), 2)[, 1:6]
+fviz_dist(distance, gradient = list(low = "#00AFBB", mid = "white", high = "#FC4E07"))
+```
+```{r}
+df <- complete_data2
+
+k2 <- kmeans(df, centers = 2, nstart = 25)
+k3 <- kmeans(df, centers = 3, nstart = 25)
+k4 <- kmeans(df, centers = 4, nstart = 25)
+k5 <- kmeans(df, centers = 5, nstart = 25)
+k6 <- kmeans(df, centers = 6, nstart = 25)
+k7 <- kmeans(df, centers = 7, nstart = 25)
+k8 <- kmeans(df, centers = 8, nstart = 25)
+k9 <- kmeans(df, centers = 9, nstart = 25)
+
+str(k2)
+```
+```{r}
+p1 <- fviz_cluster(k2, geom = "point", data = df) + ggtitle("k = 2")
+p2 <- fviz_cluster(k3, geom = "point",  data = df) + ggtitle("k = 3")
+p3 <- fviz_cluster(k4, geom = "point",  data = df) + ggtitle("k = 4")
+p4 <- fviz_cluster(k5, geom = "point",  data = df) + ggtitle("k = 5")
+p5 <- fviz_cluster(k6, geom = "point",  data = df) + ggtitle("k = 6")
+p6 <- fviz_cluster(k7, geom = "point",  data = df) + ggtitle("k = 6")
+p7 <- fviz_cluster(k8, geom = "point",  data = df) + ggtitle("k = 6")
+p8 <- fviz_cluster(k9, geom = "point",  data = df) + ggtitle("k = 6")
+
+library(gridExtra)
+grid.arrange(p1, p2, p3, p4,p5,p6,p7,p8, nrow = 4)
+```
+
+In order to determin the optimal clusters, we can use one of the following method which includes:
+
+- Elbow method
+- Silhouette method
+- Gap statisti
+
+
+But here we see overlapping between cluster which we can't explain
 
 
 ### Trees
@@ -544,126 +600,18 @@ display <- rbind(
 
 display %>% kable() %>% kable_paper()
 ```
-
-The best model using Rsquare and RMSE as the primary selection criteria, random forest produces the optimal model. The Gradient Boosted tree performed only marginally worse, but Rsquare parameter still fell below the .50 threshold. However, when it boils down to determining the most influential food predictor in deaths relating to COVID-19, it appears to be `Eggs`, according to the models. 
+The best model using Rsquare and RMSE as the primary selection criteria, random forest produces the optimal model. The Gradient Boosted tree performed only marginally worse, but Rsquare parameter still fell below the .50
+threshold. However, when it boils down to determining the most influential food predictor in deaths relating to COVID-19, it appears to be `Eggs`, according to the models. 
 
 ### Non-Linear
 
-Due to the nonlinear nature of the target variable and the predictors, it is important to explore other nonlinear models such as support vector machine. SVM is typically used for classification but it can be used for regression. The algorithm finds a function that creates a hyperplane that separates the space between the target classes. In regards to regression, the principal is similar, finding a good fitting hyperplane. 
+#### SVM
 
-Since our target variable `Deaths` is numerical, we will have to perform support vector regression. 
-
-#### Support Vector Regression
-
-Use the svm function with a radial kernal to build a model. We're going to use the normalized training and testing set. 
-
-```{r}
-svr_model <- svm(X.train.cs,
-                   Y.train.cs,
-                   kernal = "Radial",
-                   cost=10)
-  
-```
-
-
-```{r}
-print(svr_model)
-```
-
-```{r, echo=FALSE}
-pred = predict(svr_model, X.test.cs)
-
-x = 1:length(Y.test.cs)
-```
-
-Plot of Actual Points vs Line of Predicted Points
-
-```{r}
-plot(x, Y.test.cs, pch=18, col="red")
-lines(x, pred, lwd="1", col="blue")
-```
-
-```{r}
-### Check Support Vector Regression Accuracy 
-library(MLmetrics)
-mse = MSE(Y.test.cs, pred)
-mae = MAE(Y.test.cs, pred)
-rmse = RMSE(Y.test.cs, pred)
-
-r2 = R2(Y.test.cs, pred, form = "traditional")
-
-cat(" MAE:", mae, "\n", "MSE", mse, "\n",
-     "RMSE:", rmse, "\n", "R-Squared:", r2)
-```
-
-The basic support vector regression model produces an R-Square of 0.4499807 and an RMSE of 0.5300456. The plot shows that the model produces a poor fit. We can tune the model with different values of epsilon and cost to create a better model. 
-
-Tune SVM:
-
-The tune function identifies the best parameters by performing a grid search.
-
-```{r}
-tuneResult <- tune(svm, Deaths~., data=nrmData, ranges = list(epsilon=seq(0,1,0.1), cost = 2^(seq(0.5,8,.5))))
-```
-
-Here is the plot of the tuned model. The darker shades of the plot show the optimal parameters.
-
-```{r}
-plot(tuneResult)
-print(tuneResult)
-```
-
-
-```{r}
-tunedVals <- tuneResult$best.model
-predict2 <- predict(tunedVals, X.test.cs)
-```
-
-The updated plot of the tuned model. It shows a better fit than the non-tuned model.
-
-```{r}
-x1 = 1:length(Y.test.cs)
-
-plot(x1, Y.test.cs, pch=18, col="red")
-lines(x1, predict2, lwd="1", col="blue")
-
-```
-
-Checking the accuracy of the tuned model:
-
-```{r}
-mse = MSE(Y.test.cs, predict2)
-mae = MAE(Y.test.cs, predict2)
-rmse = RMSE(Y.test.cs, predict2)
-
-r2 = R2(Y.test.cs, predict2, form = "traditional")
-
-cat(" MAE:", mae, "\n", "MSE", mse, "\n",
-     "RMSE:", rmse, "\n", "R-Squared:", r2)
-
-```
-
-The tuned model's RSquare is much higher at 0.7057181 and a better RMSE score oef 0.3462124. We can manually check the tuned model's most important features:
-
-```{r}
-
-w <- t(tunedVals$coefs) %*% tunedVals$SV
-
-w <- apply(w, 2, function(v){sqrt(sum(v^2))})
-
-w <- sort(w, decreasing = T)
-
-print(w)
-```
-
-The tuned SVR model places a high level of importance on `Alcoholic.Beverages`, `Animal.fats`, `Obesity`, `Stimulants`, and `Oilcrops` when predicting deaths related to COVID-19. This makes logical sense since these factors are known (when consumed in large amounts) to be associated with overall poor health.  
 
 #### KNN
 
 
+### Clustering(?)
 
-Sources:
 
-https://www.jmlr.org/papers/volume3/guyon03a/guyon03a.pdf
-https://alex.smola.org/papers/2004/SmoSch04.pdf
-https://stackoverflow.com/questions/34781495/how-to-find-important-factors-in-support-vector-machine
+
