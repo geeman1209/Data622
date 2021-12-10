@@ -20,6 +20,8 @@ library(naniar)
 library(kableExtra)
 library(skimr)
 library(randomForest)
+library(fitdistrplus)
+library(corrplot)
 ```
 
 
@@ -90,6 +92,7 @@ plot_missing(supply_kcal_data,  missing_only = TRUE)
 #Giving the countries with an undernourished percentage of <2.5, a flat 2. This eliminates the less than character and doesn't rely on 
 #imputation to make up a new number. The imputed data would give a country a like the United States a percentage of 47.5, which can greatly
 #affect how it is clustered
+raw_data <- supply_kcal_data
 raw_data$Undernourished[raw_data$Undernourished == "<2.5"] <- "2"
 
 #Make the Undernourished column numeric
@@ -103,7 +106,7 @@ complete_data <- complete(imputed_data, 2)
 ```
 
 ```{r, echo=FALSE}
-complete_data2 <- complete_data %>% dplyr::select(c(-"Country",-"Unit..all.except.Population.", -"Confirmed",-"Recovered",-"Active"))
+complete_data2 <- complete_data %>% dplyr::select(c(-"Country",-"Unit..all.except.Population.", -"Confirmed",-"Active"))
 ```
 
 
@@ -129,7 +132,7 @@ plot_histogram(complete_data2, ggtheme = theme_linedraw())
 Some other graphical methods, maybe more helpful than the simple histogram. we used the fitdisrplus package in R to visualize the recovery variable data together with some possible theoretical distributions in a skewness-kurtosis space:
 
 ```{r}
-plotdist(complete_data2$Recovered, histo = TRUE, demp = TRUE)
+plotdist(complete_data2$Re, histo = TRUE, demp = TRUE)
 ```
 From the empirical density above, our distribution is right skewed and appears to be an exponential type of distribution. The Cullen and Frey Graph below is a good way to exempt some distributions by the parameters of skewness and kurtosis using the descdist function; The orange values around the blue (data) point are based on bootstrapping. From this Cullen and Frey Graph and the empirical graphs above, our choices for good fits would seem to be limited to the available distributions in the fitdistrplus package:
 
@@ -173,33 +176,33 @@ Since the gamma distribution has the min AIC, BIC, and minimum goodness-of-fit s
 
 ```{r, echo=FALSE}
 #Select top 20 countries of different predictors (those usually associated with healthy or unhealthy diets) 
-top_obese_countries <- complete_data2 %>% 
+top_obese_countries <- complete_data %>% 
                        dplyr::select(Country, Obesity) %>%
                        arrange(desc(Obesity)) %>%
                        head(20)
 
 
-top_deaths_countries <- complete_data2 %>% 
+top_deaths_countries <- complete_data %>% 
                         dplyr::select(Country, Deaths) %>%
                         arrange(desc(Deaths)) %>%
                         head(20)
 
-top_veggies_countries <- complete_data2 %>% 
+top_veggies_countries <- complete_data %>% 
                         dplyr::select(Country, Vegetables) %>%
                         arrange(desc(Vegetables)) %>%
                         head(20)
 
-top_meat_countries <- complete_data2 %>% 
+top_meat_countries <- complete_data %>% 
                         dplyr::select(Country, Meat) %>%
                         arrange(desc(Meat)) %>%
                         head(20)
 
-top_aniproducts_countries <- complete_data2 %>% 
+top_aniproducts_countries <- complete_data %>% 
                         dplyr::select(Country, Animal.Products) %>%
                         arrange(desc(Animal.Products)) %>%
                         head(20)
 
-top_sugar_countries <- complete_data2 %>% 
+top_sugar_countries <- complete_data %>% 
                         dplyr::select(Country, Sugar...Sweeteners) %>%
                         arrange(desc(Sugar...Sweeteners)) %>%
                         head(20)
@@ -298,9 +301,155 @@ Y.test.cs <- Deaths2[-initsplit2,]
 ```
 ## Models
 
+
+### PCA 
+
+#### Variable correlation
+
+Before we start our PCA analysis we selected the variables that we are interested on and checked if a significant correlation among some of these variables. We want to create a list of the strongest correlations with diets for 2 covid states: deaths, and recovered. We will not use the active, and confirmed covid state.
+
+
+
+```{r}
+M<- cor(complete_data2[, c('Alcoholic.Beverages','Animal.fats', 'Eggs', 'Fish..Seafood', 'Fish..Seafood', 'Fruits...Excluding.Wine','Meat', 'Milk...Excluding.Butter', 'Starchy.Roots','Sugar...Sweeteners','Vegetal.Products','Vegetable.Oils','Vegetables','Recovered', 'Deaths')])
+
+#M <- cor.test(eng_imputed)
+
+head(round(M,2))
+```
+We also added significance test to the correlogram we shall compute the p-value. In the correlogram blow If the p-value is greater than 0.01 then it is an insignificant value for which the cells are either blank or crossed. 
+
+
+```{r}
+library(RColorBrewer)
+cor.mtest <- function(mat, ...) 
+{
+  mat <- as.matrix(mat)
+  n <- ncol(mat)
+  p.mat<- matrix(NA, n, n)
+  diag(p.mat) <- 0
+  for (i in 1:(n - 1)) 
+  {
+    for (j in (i + 1):n)
+    {
+      tmp <- cor.test(mat[, i], mat[, j], ...)
+      p.mat[i, j] <- p.mat[j, i] <- tmp$p.value
+    }
+  }
+  colnames(p.mat) <- rownames(p.mat) <- colnames(mat)
+  p.mat
+}
+
+p.mat <- cor.mtest(complete_data2[, c('Alcoholic.Beverages','Animal.fats', 'Eggs', 'Fish..Seafood', 'Fish..Seafood', 'Fruits...Excluding.Wine','Meat', 'Milk...Excluding.Butter', 'Starchy.Roots','Sugar...Sweeteners','Vegetal.Products','Vegetable.Oils','Vegetables','Recovered', 'Deaths')])
+
+# Correlation 
+M <- cor(complete_data2[, c('Alcoholic.Beverages','Animal.fats', 'Eggs', 'Fish..Seafood', 'Fish..Seafood', 'Fruits...Excluding.Wine','Meat', 'Milk...Excluding.Butter', 'Starchy.Roots','Sugar...Sweeteners','Vegetal.Products','Vegetable.Oils','Vegetables','Recovered', 'Deaths')])
+
+
+# Specialized the insignificant value
+# according to the significant level
+corrplot(M, method="number", type = "upper", order = "hclust", 
+         p.mat = p.mat, sig.level = 0.01, tl.col = "black")
+
+```
+From the plot we can see that when we compare death and recovered cases, the animal fat, animal products significantly higher in terms of correlation. Recovered cases diets have a lesser correlation to meat diet.
+
+####  PCA Summary
+
+```{r}
+Data.pca1 <- prcomp(complete_data2, center=TRUE, scale.=TRUE)
+summary(Data.pca1)
+```
+**Z=XV both give the same output**
+
+```{r}
+Data.pca1$x [,1:10] %>% head(1) 
+```
+
+**V matrix - Eigenvectors**
+
+```{r}
+head(Data.pca1$rotation)
+```
+**Principal components**
+
+Since the principal components are orthogonal, there is no correlation whatsoever. The correlation plot is perfectly white, apart from autocorrelation.
+
+```{r}
+res1 <- cor(Data.pca1$x, method="pearson")
+corrplot::corrplot(res1, method= "color", order = "hclust", tl.pos = 'n')
+```
+#### PCA analysis
+
+The plot below shows what percent of variance has been explained for each number of principal components (aggregate variance explained).
+
+```{r}
+plot(summary(Data.pca1)$importance[3,])
+```
+#### Plots
+
+**PC1-PC2**
+
+```{r}
+library(factoextra)
+fviz_pca_var(Data.pca1,axes = c(1, 2))
+```
+
+**PC3-PC4**
+
+```{r}
+fviz_pca_var(Data.pca1,axes = c(3, 4))
+```
+
+**PC5-PC6**
+
+```{r}
+fviz_pca_var(Data.pca1,axes = c(5, 6))
+```
+
+
+**PC7-PC8**
+
+```{r}
+fviz_pca_var(Data.pca1,axes = c(7, 8))
+```
+##### Linear regression with principal components
+
+Below are scatterplots showing the relation between PCs and y. Some of the principal components have a high correlation and others a lower correlation with the observed dependent variable.
+
+**Scatterplots**
+
+```{r}
+par(mfrow=c(2,2))
+pcs <- as.data.frame(Data.pca1$x)
+plot(complete_data2$Deaths, pcs$PC1)
+plot(complete_data2$Deaths, pcs$PC2)
+plot(complete_data2$Deaths, pcs$PC3)
+plot(complete_data2$Deaths, pcs$PC4)
+```
+#### PCR
+
+In order to perform the regression, I am combining both the explanatory variables - PCs, and explained variable - y. In this moment the dimensionality reduction should take place. Here however I won’t be getting rid of any principal components since I want to compare the results with prc from pls package.
+
+```{r}
+ols.data <- cbind(complete_data2$Deaths, pcs)
+```
+
+Using the lm function I perform the linear regression. 
+
+```{r}
+lmodel <- lm(complete_data2$Deaths ~ ., data = ols.data)
+```
+
+```{r}
+summary(lmodel)
+```
+
+
 ### Trees
 
 Decision trees do not need a normalized and scaled data set in order to build a model. Scaling the data can affect any nonlinear relationships in the data. Decision tree model are robust enough to not need normalization and can reflect any nonlinear relationships in the model that is created.
+
 
 #### Random Forest
 
