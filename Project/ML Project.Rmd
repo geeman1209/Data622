@@ -121,7 +121,7 @@ complete_data <- complete(imputed_data, 2)
 ```
 
 ```{r, echo=FALSE}
-complete_data2 <- complete_data %>% dplyr::select(c(-"Country",-"Unit..all.except.Population.", -"Confirmed",-"Active"))
+complete_data2 <- complete_data %>% dplyr::select(c(-"Country",-"Unit..all.except.Population.", -"Confirmed",-"Active", -"Recovered"))
 ```
 
 
