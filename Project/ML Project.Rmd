@@ -1,11 +1,23 @@
 ---
-title: "Final Project"
-author: "Abdellah AitElmouden | Gabriel Abreu |  Jered Ataky"
-date: "12/1/2021"
+title: "DATA 622 FINAL PROJECT | Coutries diet & COVID-19 Mortality Rate"
+author: "Abdellah Ait Elmouden | Gabriel Abreu |  Jered Ataky"
+date: "12/10/2021"
 output:
-  html_document: default
-  pdf_document: default
+  html_document:
+    code_folding: hide
+    theme: cerulean
+    toc: yes
+    toc_float:
+      collapsed: yes
+      smooth_scroll: yes
+  pdf_document:
+    toc: yes
 ---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message=F, warning=F)
+```
 
 
 ```{r}
@@ -28,7 +40,7 @@ library(recipes)
 
 ## Introduction
 
-Nutritional factors play a key role in both innate and adaptive immunity. Further, we have learnt that individuals with comorbidities are disproportionally affected with severe COVID-19 disease and mortality. Obesity, type 2 diabetes, atherosclerotic cardiovascular disease, and hypertension are risk factors for severe COVID-19.5 6 The aetiology of these conditions is largely driven by poor nutrition and unfavourable lifestyle choices (eg, physical inactivity or sedentary behaviour) 
+Nutritional factors play a key role in both innate and adaptive immunity. Further, we have learned that individuals with comorbidities are disproportionately affected with severe COVID-19 disease and mortality. Obesity, type 2 diabetes, atherosclerotic cardiovascular disease, and hypertension are risk factors for severe COVID-19.The aetiology of these conditions is largely driven by poor nutrition and unfavorable lifestyle choices (eg, physical inactivity or sedentary behaviour) 
 
 The goal of this analysis is to find out how a country’s diet correlates with its COVID-19 mortality rate. With different food cultures across the world, it would be interesting to see what are the food categories that can best predict a country’s rate of deaths.
 
@@ -64,9 +76,9 @@ performance
 
 ## Data Exploration and Processing
 
-#### The whole data overview
+### Data overview
 
-```{r setup, include=FALSE}
+```{r}
 fat_data <- read.csv("./data/Fat_Supply_Quantity_Data.csv")
 supply_kcal_data <- read.csv("./data/Food_Supply_kcal_Data.csv")
 supply_kg_data <- read.csv("./data/Food_Supply_Quantity_kg_Data.csv")
@@ -75,19 +87,21 @@ protein_data <- read.csv("./data/Protein_Supply_Quantity_Data.csv")
 
 After importing the files we have noticed that the datasets are similar, and we choose to focus on the easiest to understand: food_kcal. Caloric intake from specific food groups makes it easy to understand which food groups contribute the most to a country's diet and overall calorie count. Diets can be high caloric but traditional thinking dictates that diets rich in vegetables and fruits will be healthier than those that eat a large amount of meat and sugars. Also the Unit column only contains the % sign, indicating that all the column except the Population one are in percentages. It is important to know the unit used.
 
-the data are organized by countries. There are 170 countries in these datasets. 32 variables as following:
+The data are organized by countries. There are 170 countries in these datasets. 32 variables as following:
 
 ```{r}
 names(supply_kcal_data)
 ```
-### Check for missing Data
+
+### Missing Data
 
 Missing data in substantive research is common and can be problematic for structural equation modelling if not handled correctly. A well recognised statistical benchmark suggests datasets with missingness less than 5% is not a problem. Within this dataset we checked if our data variable had less than 5% missing data and therefore not be considered a problem to conduct further statistical tests. quick screening the data we can see that certain columns have some null values. The plot below generated using the R plot_missing function helps us understand that almost 4% of data are missing in the "Recovered", "Deaths", "Confirmed", ""Undernourished" and "Active" Variables. and almost 2% in the "Obesity", So still can imput the missing values using predictive mean matching method, that is a widely used statistical imputation method for missing values, so can get a better predictive accuracy.
 
 ```{r}
 plot_missing(supply_kcal_data,  missing_only = TRUE)
 ```
-**Imputation**
+
+#### Imputation**
 
 ```{r, echo=FALSE}
 #Giving the countries with an undernourished percentage of <2.5, a flat 2. This eliminates the less than character and doesn't rely on 
@@ -113,7 +127,7 @@ complete_data2 <- complete_data %>% dplyr::select(c(-"Country",-"Unit..all.excep
 
 ### Statistical Analyses
 
-**Numerical Variables Distribution**
+#### Numerical Variables Distribution
 
 The statistical analysis included a prior investigation on the distribution of the independent and dependent variable (recovery from COVID-19), testing different types of probability distribution. 
 
@@ -225,30 +239,17 @@ ggplot(top_meat_countries, aes(x=Meat, y=Country)) + geom_histogram(stat = "iden
 ggplot(top_sugar_countries, aes(x=Sugar...Sweeteners, y=Country)) + geom_histogram(stat = "identity")
 ```
 
-```{r}
-
-```
-
-```{r}
-
-```
-```{r}
-
-```
-
-```{r}
-
-```
 
 
 ## Data Manipulation
+
 ```{r, echo=FALSE}
 #make a copy of the original data set 
 raw_data <- supply_kcal_data
 ```
 
 
-### Create Training/Test Set
+### Split the data
 
 ```{r}
 #Creating a non-normalized and scaled data set (only BoxCox transformation, eliminate near zero variance and highly correlated variables)
@@ -300,7 +301,8 @@ Y.train.cs <- Deaths2[initsplit2,]
 X.test.cs <- predictors2[-initsplit2,]
 Y.test.cs <- Deaths2[-initsplit2,]
 ```
-## Models
+
+## Modeling
 
 
 ### PCA 
@@ -380,13 +382,15 @@ Since the principal components are orthogonal, there is no correlation whatsoeve
 res1 <- cor(Data.pca1$x, method="pearson")
 corrplot::corrplot(res1, method= "color", order = "hclust", tl.pos = 'n')
 ```
-#### PCA analysis
+
+#### PCA exploration
 
 The plot below shows what percent of variance has been explained for each number of principal components (aggregate variance explained).
 
 ```{r}
 plot(summary(Data.pca1)$importance[3,])
 ```
+
 #### Plots
 
 **PC1-PC2**
@@ -414,6 +418,7 @@ fviz_pca_var(Data.pca1,axes = c(5, 6))
 ```{r}
 fviz_pca_var(Data.pca1,axes = c(7, 8))
 ```
+
 ##### Linear regression with principal components
 
 Below are scatterplots showing the relation between PCs and y. Some of the principal components have a high correlation and others a lower correlation with the observed dependent variable.
@@ -428,9 +433,10 @@ plot(complete_data2$Deaths, pcs$PC2)
 plot(complete_data2$Deaths, pcs$PC3)
 plot(complete_data2$Deaths, pcs$PC4)
 ```
+
 #### PCR
 
-In order to perform the regression, I am combining both the explanatory variables - PCs, and explained variable - y. In this moment the dimensionality reduction should take place. Here however I won’t be getting rid of any principal components since I want to compare the results with prc from pls package.
+In order to perform the regression, we are combining both the explanatory variables - PCs, and explained variable - y. In this moment the dimensionality reduction should take place. Here however we won’t be getting rid of any principal components since we want to compare the results with prc from pls package.
 
 ```{r}
 ols.data <- cbind(complete_data2$Deaths, pcs)
@@ -445,6 +451,8 @@ lmodel <- lm(complete_data2$Deaths ~ ., data = ols.data)
 ```{r}
 summary(lmodel)
 ```
+
+
 ### K-mean
 
 ```{r}
@@ -605,13 +613,130 @@ threshold. However, when it boils down to determining the most influential food 
 
 ### Non-Linear
 
-#### SVM
+Due to the nonlinear nature of the target variable and the predictors, it is important to explore other nonlinear models such as support vector machine. SVM is typically used for classification but it can be used for regression. The algorithm finds a function that creates a hyperplane that separates the space between the target classes. In regards to regression, the principal is similar, finding a good fitting hyperplane. 
+
+Since our target variable `Deaths` is numerical, we will have to perform support vector regression. 
+
+#### Support Vector Regression
+
+Use the svm function with a radial kernal to build a model. We're going to use the normalized training and testing set. 
+
+```{r}
+library(e1071)
+svr_model <- svm(X.train.cs,
+                   Y.train.cs,
+                   kernal = "Radial",
+                   cost=10)
+  
+```
 
 
-#### KNN
+```{r}
+print(svr_model)
+```
+
+```{r, echo=FALSE}
+pred = predict(svr_model, X.test.cs)
+
+x = 1:length(Y.test.cs)
+```
+
+Plot of Actual Points vs Line of Predicted Points
+
+```{r}
+plot(x, Y.test.cs, pch=18, col="red")
+lines(x, pred, lwd="1", col="blue")
+```
+
+```{r}
+### Check Support Vector Regression Accuracy 
+library(MLmetrics)
+mse = MSE(Y.test.cs, pred)
+mae = MAE(Y.test.cs, pred)
+rmse = RMSE(Y.test.cs, pred)
+
+r2 = R2(Y.test.cs, pred, form = "traditional")
+
+cat(" MAE:", mae, "\n", "MSE", mse, "\n",
+     "RMSE:", rmse, "\n", "R-Squared:", r2)
+```
+
+The basic support vector regression model produces an R-Square of 0.4499807 and an RMSE of 0.5300456. The plot shows that the model produces a poor fit. We can tune the model with different values of epsilon and cost to create a better model. 
+
+Tune SVM:
+
+The tune function identifies the best parameters by performing a grid search.
+
+```{r}
+tuneResult <- tune(svm, Deaths~., data=nrmData, ranges = list(epsilon=seq(0,1,0.1), cost = 2^(seq(0.5,8,.5))))
+```
+
+Here is the plot of the tuned model. The darker shades of the plot show the optimal parameters.
+
+```{r}
+plot(tuneResult)
+print(tuneResult)
+```
 
 
-### Clustering(?)
+```{r}
+tunedVals <- tuneResult$best.model
+predict2 <- predict(tunedVals, X.test.cs)
+```
+
+The updated plot of the tuned model. It shows a better fit than the non-tuned model.
+
+```{r}
+x1 = 1:length(Y.test.cs)
+
+plot(x1, Y.test.cs, pch=18, col="red")
+lines(x1, predict2, lwd="1", col="blue")
+
+```
+
+Checking the accuracy of the tuned model:
+
+```{r}
+mse = MSE(Y.test.cs, predict2)
+mae = MAE(Y.test.cs, predict2)
+rmse = RMSE(Y.test.cs, predict2)
+
+r2 = R2(Y.test.cs, predict2, form = "traditional")
+
+cat(" MAE:", mae, "\n", "MSE", mse, "\n",
+     "RMSE:", rmse, "\n", "R-Squared:", r2)
+
+```
+
+The tuned model's RSquare is much higher at 0.7057181 and a better RMSE score oef 0.3462124. We can manually check the tuned model's most important features:
+
+```{r}
+
+w <- t(tunedVals$coefs) %*% tunedVals$SV
+
+w <- apply(w, 2, function(v){sqrt(sum(v^2))})
+
+w <- sort(w, decreasing = T)
+
+print(w)
+```
+
+The tuned SVR model places a high level of importance on `Alcoholic.Beverages`, `Animal.fats`, `Obesity`, `Stimulants`, and `Oilcrops` when predicting deaths related to COVID-19. This makes logical sense since these factors are known (when consumed in large amounts) to be associated with overall poor health. 
 
 
+## Conclusion & Findings
+
+In this analysis, we used several models to study the correlation between countries' diet and COVID-19 mortality rate.
+
+By exploring each of those methods (which we include details in related section), we found out that food cultures is very important key as in predicting the mortality rate of COVID-19. 
+
+The models show foods associated with overall poor health increases the mortality rate of COVID-19 in a given country. That's it, a population which has a healthy diet (food based on vegetal products, cereals,..) has a lower death rate in comparison with a population which has a higher obesity rate and consumes more animal products. In other words, a population with a healthy diet has a low rate of deaths related to the COVID-19.
+
+
+
+**Sources:**
+
+https://www.jmlr.org/papers/volume3/guyon03a/guyon03a.pdf
+https://alex.smola.org/papers/2004/SmoSch04.pdf
+https://stackoverflow.com/questions/34781495/how-to-find-important-factors-in-support-vector-machine
 
